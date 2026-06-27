@@ -25,6 +25,7 @@ interface DashboardProps {
   cashBalance: number;
   cashHistory: { date: string; balance: number }[];
   isPersonal?: boolean;
+  vatRegistered?: boolean;
 }
 
 export default function Dashboard({
@@ -32,6 +33,7 @@ export default function Dashboard({
   searchQuery, onSearchChange, onNewEntry, onEditEntry, accountBalance,
   totalVatPayable, totalVatDeductible, cashBalance, cashHistory,
   isPersonal,
+  vatRegistered = true,
 }: DashboardProps) {
   const [mobileTab, setMobileTab] = useState<'overview' | 'entries' | 'accounts'>('entries');
 
@@ -83,7 +85,7 @@ export default function Dashboard({
         </CardContent>
       </Card>
 
-      {!isPersonal && (
+      {vatRegistered !== false && !isPersonal && (
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-gray-500 uppercase tracking-wider flex items-center gap-2"><Calculator className="w-4 h-4" /> ALV-tilanne</CardTitle></CardHeader>
           <CardContent className="space-y-2">

@@ -121,6 +121,7 @@ export function MainApp() {
             cashBalance={store.cashBalance}
             cashHistory={cashHistory}
             isPersonal={store.ledgers.find((l) => l.id === store.activeLedgerId)?.type === 'personal'}
+            vatRegistered={store.company?.vatRegistered ?? true}
           />
         )}
 
@@ -176,6 +177,7 @@ export function MainApp() {
               accountBalance={store.accountBalance}
               totalVatPayable={store.totalVatPayable}
               totalVatDeductible={store.totalVatDeductible}
+              vatRegistered={store.company?.vatRegistered ?? true}
             />
           </Suspense>
         )}

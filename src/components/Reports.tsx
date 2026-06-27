@@ -12,9 +12,10 @@ interface ReportsProps {
   accountBalance: (accountId: string) => number;
   totalVatPayable: number;
   totalVatDeductible: number;
+  vatRegistered?: boolean;
 }
 
-export default function Reports({ entries, accounts, accountBalance, totalVatPayable, totalVatDeductible }: ReportsProps) {
+export default function Reports({ entries, accounts, accountBalance, totalVatPayable, totalVatDeductible, vatRegistered = true }: ReportsProps) {
   const [period, setPeriod] = useState('2024');
 
   const formatMoney = (v: number) => v.toLocaleString('fi-FI', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
@@ -95,9 +96,11 @@ export default function Reports({ entries, accounts, accountBalance, totalVatPay
             <TabsTrigger value="balance" className="flex items-center gap-1 text-xs lg:text-sm">
               <Scale className="w-3.5 h-3.5 lg:w-4 lg:h-4" /> Tase
             </TabsTrigger>
-            <TabsTrigger value="vat" className="flex items-center gap-1 text-xs lg:text-sm">
-              <Calculator className="w-3.5 h-3.5 lg:w-4 lg:h-4" /> ALV
-            </TabsTrigger>
+            {vatRegistered !== false && (
+              <TabsTrigger value="vat" className="flex items-center gap-1 text-xs lg:text-sm">
+                <Calculator className="w-3.5 h-3.5 lg:w-4 lg:h-4" /> ALV
+              </TabsTrigger>
+            )}
             <TabsTrigger value="charts" className="flex items-center gap-1 text-xs lg:text-sm">
               <BarChart3 className="w-3.5 h-3.5 lg:w-4 lg:h-4" /> Graafit
             </TabsTrigger>
@@ -210,7 +213,7 @@ export default function Reports({ entries, accounts, accountBalance, totalVatPay
             </div>
           </TabsContent>
 
-          {/* VAT Report */}
+          {vatRegistered !== false && (
           <TabsContent value="vat" className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Card>
@@ -246,6 +249,7 @@ export default function Reports({ entries, accounts, accountBalance, totalVatPay
               </div>
             </div>
           </TabsContent>
+          )}
 
           {/* Charts */}
           <TabsContent value="charts" className="space-y-4">
