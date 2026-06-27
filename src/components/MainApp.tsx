@@ -120,6 +120,7 @@ export function MainApp() {
             totalVatDeductible={store.totalVatDeductible}
             cashBalance={store.cashBalance}
             cashHistory={cashHistory}
+            isPersonal={store.ledgers.find((l) => l.id === store.activeLedgerId)?.type === 'personal'}
           />
         )}
 

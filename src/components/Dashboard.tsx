@@ -24,12 +24,14 @@ interface DashboardProps {
   totalVatDeductible: number;
   cashBalance: number;
   cashHistory: { date: string; balance: number }[];
+  isPersonal?: boolean;
 }
 
 export default function Dashboard({
   entries, accounts, filteredEntries, selectedAccountId, onSelectAccount,
   searchQuery, onSearchChange, onNewEntry, onEditEntry, accountBalance,
   totalVatPayable, totalVatDeductible, cashBalance, cashHistory,
+  isPersonal,
 }: DashboardProps) {
   const [mobileTab, setMobileTab] = useState<'overview' | 'entries' | 'accounts'>('entries');
 
@@ -81,17 +83,19 @@ export default function Dashboard({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-gray-500 uppercase tracking-wider flex items-center gap-2"><Calculator className="w-4 h-4" /> ALV-tilanne</CardTitle></CardHeader>
-        <CardContent className="space-y-2">
-          <div className="flex justify-between text-sm"><span className="text-gray-600">ALV-velka</span><span className="font-medium text-red-600">{formatMoney(totalVatPayable)}</span></div>
-          <div className="flex justify-between text-sm"><span className="text-gray-600">ALV-saatava</span><span className="font-medium text-green-600">{formatMoney(totalVatDeductible)}</span></div>
-          <div className="border-t pt-2 flex justify-between text-sm font-bold">
-            <span className="text-gray-900">Netto</span>
-            <span className={vatNet >= 0 ? 'text-red-600' : 'text-green-600'}>{vatNet >= 0 ? 'Maksettavaa: ' : 'Palautettavaa: '}{formatMoney(Math.abs(vatNet))}</span>
-          </div>
-        </CardContent>
-      </Card>
+      {!isPersonal && (
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-gray-500 uppercase tracking-wider flex items-center gap-2"><Calculator className="w-4 h-4" /> ALV-tilanne</CardTitle></CardHeader>
+          <CardContent className="space-y-2">
+            <div className="flex justify-between text-sm"><span className="text-gray-600">ALV-velka</span><span className="font-medium text-red-600">{formatMoney(totalVatPayable)}</span></div>
+            <div className="flex justify-between text-sm"><span className="text-gray-600">ALV-saatava</span><span className="font-medium text-green-600">{formatMoney(totalVatDeductible)}</span></div>
+            <div className="border-t pt-2 flex justify-between text-sm font-bold">
+              <span className="text-gray-900">Netto</span>
+              <span className={vatNet >= 0 ? 'text-red-600' : 'text-green-600'}>{vatNet >= 0 ? 'Maksettavaa: ' : 'Palautettavaa: '}{formatMoney(Math.abs(vatNet))}</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-gray-500 uppercase tracking-wider flex items-center gap-2"><Wallet className="w-4 h-4" /> Käteiskassa</CardTitle></CardHeader>
