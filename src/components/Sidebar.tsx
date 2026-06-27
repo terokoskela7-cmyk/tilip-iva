@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Home, BookOpen, ListTree, BarChart3, Settings, User, CircleDot,
   GraduationCap, Rocket, Calculator, CalendarCheck, Wallet, Shield,
-  Building2, Receipt, Repeat, X, Menu, LogOut, Landmark
+  Building2, Receipt, Repeat, X, Menu, LogOut, Landmark, PiggyBank,
+  PieChart
 } from 'lucide-react';
 import type { View, Ledger } from '@/types';
 import { LedgerSelector } from './LedgerSelector';
@@ -21,29 +22,46 @@ interface SidebarProps {
   onCreateLedger: () => void;
 }
 
-const navItems: { view: View; label: string; icon: typeof Home }[] = [
+const allNavItems: { view: View; label: string; icon: typeof Home; hideFor?: Ledger['type'][] }[] = [
   { view: 'dashboard', label: 'Koti', icon: Home },
-  { view: 'journal', label: 'Päiväkirja', icon: BookOpen },
-  { view: 'accounts', label: 'Tilikartta', icon: ListTree },
-  { view: 'banking', label: 'Pankki', icon: Landmark },
-  { view: 'reports', label: 'Raportit', icon: BarChart3 },
+  { view: 'personal', label: 'Oma talous', icon: PieChart, hideFor: ['company', 'private', 'housing-company'] },
+  { view: 'budget', label: 'Budjetti', icon: PiggyBank, hideFor: ['company', 'private', 'housing-company'] },
+  { view: 'journal', label: 'Päiväkirja', icon: BookOpen, hideFor: ['personal'] },
+  { view: 'accounts', label: 'Tilikartta', icon: ListTree, hideFor: ['personal'] },
+  { view: 'banking', label: 'Pankki', icon: Landmark, hideFor: ['personal'] },
+  { view: 'reports', label: 'Raportit', icon: BarChart3, hideFor: ['personal'] },
 ];
 
-const toolItems: { view: View; label: string; icon: typeof Home }[] = [
-  { view: 'guides', label: 'Ohjeet', icon: GraduationCap },
-  { view: 'entrepreneur', label: 'Yrittäjän opas', icon: Rocket },
-  { view: 'taxcalc', label: 'Vero-laskuri', icon: Calculator },
-  { view: 'checklist', label: 'Muistutuslista', icon: CalendarCheck },
-  { view: 'cashflow', label: 'Kassavirta', icon: Wallet },
-  { view: 'yel', label: 'YEL-laskuri', icon: Shield },
-  { view: 'realestate', label: 'Asuntosijoittaja', icon: Building2 },
-  { view: 'invoicing', label: 'Laskutus', icon: Receipt },
-  { view: 'recurring', label: 'Toistuvat', icon: Repeat },
+const allToolItems: { view: View; label: string; icon: typeof Home; hideFor?: Ledger['type'][] }[] = [
+  { view: 'guides', label: 'Ohjeet', icon: GraduationCap, hideFor: ['personal'] },
+  { view: 'entrepreneur', label: 'Yrittäjän opas', icon: Rocket, hideFor: ['personal'] },
+  { view: 'taxcalc', label: 'Vero-laskuri', icon: Calculator, hideFor: ['personal'] },
+  { view: 'checklist', label: 'Muistutuslista', icon: CalendarCheck, hideFor: ['personal'] },
+  { view: 'cashflow', label: 'Kassavirta', icon: Wallet, hideFor: ['personal'] },
+  { view: 'yel', label: 'YEL-laskuri', icon: Shield, hideFor: ['personal'] },
+  { view: 'realestate', label: 'Asuntosijoittaja', icon: Building2, hideFor: ['personal'] },
+  { view: 'invoicing', label: 'Laskutus', icon: Receipt, hideFor: ['personal'] },
+  { view: 'recurring', label: 'Toistuvat', icon: Repeat, hideFor: ['personal'] },
   { view: 'settings', label: 'Asetukset', icon: Settings },
 ];
 
 export default function Sidebar({ view, onViewChange, companyName, yTunnus, lastBackup, userEmail, onLogout, ledgers, activeLedgerId, onSelectLedger, onCreateLedger }: SidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const activeLedger = useMemo(
+    () => ledgers.find((l) => l.id === activeLedgerId),
+    [ledgers, activeLedgerId]
+  );
+  const ledgerType = activeLedger?.type ?? 'company';
+
+  const navItems = useMemo(
+    () => allNavItems.filter((item) => !item.hideFor?.includes(ledgerType)),
+    [ledgerType]
+  );
+  const toolItems = useMemo(
+    () => allToolItems.filter((item) => !item.hideFor?.includes(ledgerType)),
+    [ledgerType]
+  );
 
   function handleNav(newView: View) {
     onViewChange(newView);

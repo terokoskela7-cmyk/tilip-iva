@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { Account, Entry, Company, CashRegisterEntry, Customer, Invoice, RecurringEntry, View, Ledger, BankAccount, BankTransaction } from '@/types';
+import type { Account, Entry, Company, CashRegisterEntry, Customer, Invoice, RecurringEntry, View, Ledger, BankAccount, BankTransaction, PersonalEntry, Budget } from '@/types';
 import {
   getAllAccounts,
   getAllEntries,
@@ -27,6 +27,11 @@ import {
   seedLedgerAccounts,
   getAllBankAccounts,
   getAllTransactions,
+  getAllPersonalEntries,
+  savePersonalEntry,
+  deletePersonalEntry,
+  getAllBudgets,
+  saveBudget,
 } from '@/lib/firestore';
 import { deleteAttachment } from '@/lib/storage';
 import {
@@ -45,6 +50,8 @@ export function useStore() {
   const [recurringEntries, setRecurringEntries] = useState<RecurringEntry[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [bankTransactions, setBankTransactions] = useState<BankTransaction[]>([]);
+  const [personalEntries, setPersonalEntries] = useState<PersonalEntry[]>([]);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
   const [ledgers, setLedgers] = useState<Ledger[]>([]);
   const [activeLedgerId, setActiveLedgerIdState] = useState<string>(() => getActiveLedgerId());
   const [loading, setLoading] = useState(true);
@@ -60,13 +67,6 @@ export function useStore() {
   const showToast = useCallback((message: string, type: 'success' | 'error') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
-  }, []);
-
-  const changeActiveLedger = useCallback(async (ledgerId: string) => {
-    setActiveLedgerId(ledgerId);
-    setActiveLedgerIdState(ledgerId);
-    setSelectedAccountId(null);
-    setSearchQuery('');
   }, []);
 
   const loadData = useCallback(async () => {
@@ -87,33 +87,55 @@ export function useStore() {
       }
       setActiveLedgerIdState(currentLedgerId);
 
+      const activeLedger = existingLedgers.find((l) => l.id === currentLedgerId);
+      const isPersonal = activeLedger?.type === 'personal';
+
       const comp = await getCompany();
-      if (!comp) {
+      if (!comp && !isPersonal) {
         setHasCompany(false);
         setLoading(false);
         return;
       }
       setHasCompany(true);
-      setCompany(comp);
+      if (comp) setCompany(comp);
 
-      const [acc, ent, cash, cust, inv, rec, bankAcc, bankTx] = await Promise.all([
-        getAllAccounts(),
-        getAllEntries(),
-        getAllCashRegisterEntries(currentLedgerId),
-        getAllCustomers(),
-        getAllInvoices(),
-        getAllRecurringEntries(),
-        getAllBankAccounts(),
-        getAllTransactions(),
-      ]);
-      setAccounts(acc);
-      setEntries(ent);
-      setCashEntries(cash);
-      setCustomers(cust);
-      setInvoices(inv);
-      setRecurringEntries(rec);
-      setBankAccounts(bankAcc);
-      setBankTransactions(bankTx);
+      if (isPersonal) {
+        const [pers, bgt] = await Promise.all([
+          getAllPersonalEntries(),
+          getAllBudgets(),
+        ]);
+        setPersonalEntries(pers);
+        setBudgets(bgt);
+        setAccounts([]);
+        setEntries([]);
+        setCashEntries([]);
+        setCustomers([]);
+        setInvoices([]);
+        setRecurringEntries([]);
+        setBankAccounts([]);
+        setBankTransactions([]);
+      } else {
+        const [acc, ent, cash, cust, inv, rec, bankAcc, bankTx] = await Promise.all([
+          getAllAccounts(),
+          getAllEntries(),
+          getAllCashRegisterEntries(currentLedgerId),
+          getAllCustomers(),
+          getAllInvoices(),
+          getAllRecurringEntries(),
+          getAllBankAccounts(),
+          getAllTransactions(),
+        ]);
+        setAccounts(acc);
+        setEntries(ent);
+        setCashEntries(cash);
+        setCustomers(cust);
+        setInvoices(inv);
+        setRecurringEntries(rec);
+        setBankAccounts(bankAcc);
+        setBankTransactions(bankTx);
+        setPersonalEntries([]);
+        setBudgets([]);
+      }
       setLastBackup(new Date().toLocaleTimeString('fi-FI'));
     } catch (e) {
       console.error('Virhe ladattaessa tietoja:', e);
@@ -122,6 +144,14 @@ export function useStore() {
       setLoading(false);
     }
   }, [showToast]);
+
+  const changeActiveLedger = useCallback(async (ledgerId: string) => {
+    setActiveLedgerId(ledgerId);
+    setActiveLedgerIdState(ledgerId);
+    setSelectedAccountId(null);
+    setSearchQuery('');
+    await loadData();
+  }, [loadData]);
 
   useEffect(() => {
     loadData();
@@ -179,6 +209,16 @@ export function useStore() {
   const refreshBankTransactions = useCallback(async () => {
     const tx = await getAllTransactions();
     setBankTransactions(tx);
+  }, []);
+
+  const refreshPersonalEntries = useCallback(async () => {
+    const pers = await getAllPersonalEntries();
+    setPersonalEntries(pers);
+  }, []);
+
+  const refreshBudgets = useCallback(async () => {
+    const bgt = await getAllBudgets();
+    setBudgets(bgt);
   }, []);
 
   const addEntry = useCallback(async (entry: Entry) => {
@@ -276,6 +316,27 @@ export function useStore() {
     setLastBackup(new Date().toLocaleTimeString('fi-FI'));
     showToast('Toistuva tosite poistettu', 'success');
   }, [refreshRecurring, showToast]);
+
+  const addPersonalEntry = useCallback(async (entry: PersonalEntry) => {
+    await savePersonalEntry(entry);
+    await refreshPersonalEntries();
+    setLastBackup(new Date().toLocaleTimeString('fi-FI'));
+    showToast('Tapahtuma tallennettu', 'success');
+  }, [refreshPersonalEntries, showToast]);
+
+  const removePersonalEntry = useCallback(async (id: string) => {
+    await deletePersonalEntry(id);
+    await refreshPersonalEntries();
+    setLastBackup(new Date().toLocaleTimeString('fi-FI'));
+    showToast('Tapahtuma poistettu', 'success');
+  }, [refreshPersonalEntries, showToast]);
+
+  const addBudget = useCallback(async (budget: Budget) => {
+    await saveBudget(budget);
+    await refreshBudgets();
+    setLastBackup(new Date().toLocaleTimeString('fi-FI'));
+    showToast('Budjetti tallennettu', 'success');
+  }, [refreshBudgets, showToast]);
 
   const filteredEntries = entries.filter((e) => {
     if (selectedAccountId) {
@@ -381,6 +442,13 @@ export function useStore() {
     bankTransactions,
     refreshBankAccounts,
     refreshBankTransactions,
+    personalEntries,
+    budgets,
+    refreshPersonalEntries,
+    refreshBudgets,
+    addPersonalEntry,
+    removePersonalEntry,
+    addBudget,
   };
 }
 

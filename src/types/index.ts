@@ -2,7 +2,7 @@ export interface Account {
   id: string;
   number: string;
   name: string;
-  type: 'asset' | 'liability' | 'equity' | 'revenue' | 'expense';
+  type: 'asset' | 'liability' | 'equity' | 'revenue' | 'expense' | 'income';
   vatRate: number;
   parentId?: string;
   description?: string;
@@ -125,17 +125,42 @@ export interface VatPeriod {
   filedDate?: string;
 }
 
+export type LedgerType = 'company' | 'private' | 'housing-company' | 'personal';
+
 export interface Ledger {
   id: string;
   name: string;
-  type: 'company' | 'private' | 'housing-company';
+  type: LedgerType;
   yTunnus?: string;
   description?: string;
   isDefault: boolean;
   createdAt: string;
 }
 
-export type View = 'dashboard' | 'journal' | 'accounts' | 'reports' | 'settings' | 'guides' | 'entrepreneur' | 'taxcalc' | 'checklist' | 'cashflow' | 'yel' | 'realestate' | 'invoicing' | 'recurring' | 'banking';
+
+export interface PersonalEntry {
+  id: string;
+  date: string;
+  description: string;
+  amount: number;
+  category: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface BudgetItem {
+  categoryId: string;
+  budgeted: number;
+  actual: number;
+}
+
+export interface Budget {
+  id: string;
+  month: string;
+  items: BudgetItem[];
+}
+
+export type View = 'dashboard' | 'journal' | 'accounts' | 'reports' | 'settings' | 'guides' | 'entrepreneur' | 'taxcalc' | 'checklist' | 'cashflow' | 'yel' | 'realestate' | 'invoicing' | 'recurring' | 'banking' | 'personal' | 'budget';
 
 export interface CashRegisterEntry {
   id: string;

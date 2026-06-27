@@ -23,10 +23,14 @@ import type {
   BankAccount,
   BankTransaction,
   Ledger,
+  LedgerType,
+  PersonalEntry,
+  Budget,
 } from '@/types';
 import { defaultAccounts } from '@/data/defaultAccounts';
 import { privateAccounts } from '@/data/privateAccounts';
 import { housingAccounts } from '@/data/housingAccounts';
+import { personalAccounts } from '@/data/personalAccounts';
 
 const ACTIVE_LEDGER_KEY = 'activeLedgerId';
 
@@ -216,25 +220,61 @@ export async function saveManyAccounts(accounts: Account[], ledgerId?: string): 
 }
 
 // === SEEDING ===
-export function getAccountsForLedgerType(type: Ledger['type']): Omit<Account, 'id'>[] {
+export function getAccountsForLedgerType(type: LedgerType): Omit<Account, 'id'>[] {
   switch (type) {
     case 'private':
       return privateAccounts;
     case 'housing-company':
       return housingAccounts;
+    case 'personal':
+      return personalAccounts;
     case 'company':
     default:
       return defaultAccounts;
   }
 }
 
-export async function seedLedgerAccounts(ledgerId: string, type: Ledger['type']): Promise<void> {
+export async function seedLedgerAccounts(ledgerId: string, type: LedgerType): Promise<void> {
   const source = getAccountsForLedgerType(type);
   const accounts: Account[] = source.map((acc) => ({
     ...acc,
     id: generateId(),
   }));
   await saveManyAccounts(accounts, ledgerId);
+}
+
+
+// === PERSONAL ENTRIES ===
+export async function getAllPersonalEntries(): Promise<PersonalEntry[]> {
+  const snap = await getDocs(query(ledgerCol('personalEntries'), orderBy('date', 'desc')));
+  return snap.docs.map((d) => d.data() as PersonalEntry);
+}
+
+export async function savePersonalEntry(entry: PersonalEntry): Promise<void> {
+  await setDoc(ledgerDoc('personalEntries', entry.id), entry);
+}
+
+export async function deletePersonalEntry(id: string): Promise<void> {
+  await deleteDoc(ledgerDoc('personalEntries', id));
+}
+
+// === BUDGETS ===
+export async function getBudget(month: string): Promise<Budget | null> {
+  const snap = await getDoc(ledgerDoc('budgets', month));
+  return snap.exists() ? (snap.data() as Budget) : null;
+}
+
+export async function getAllBudgets(): Promise<Budget[]> {
+  const snap = await getDocs(query(ledgerCol('budgets'), orderBy('month', 'desc')));
+  return snap.docs.map((d) => d.data() as Budget);
+}
+
+export async function saveBudget(budget: Budget): Promise<void> {
+  await setDoc(ledgerDoc('budgets', budget.id), budget);
+}
+
+export async function deleteBudget(month: string): Promise<void> {
+  await deleteDoc(ledgerDoc('budgets', month));
 }
 
 // === MIGRATION ===
@@ -331,7 +371,7 @@ export async function exportAllData(): Promise<Record<string, unknown[]>> {
 
 // === RESET ===
 export async function resetDatabase(): Promise<void> {
-  const cols = ['accounts', 'entries', 'customers', 'invoices', 'recurringEntries', 'vatPeriods', 'bankAccounts', 'bankTransactions'];
+  const cols = ['accounts', 'entries', 'customers', 'invoices', 'recurringEntries', 'vatPeriods', 'bankAccounts', 'bankTransactions', 'personalEntries', 'budgets'];
   const ledgerId = getActiveLedgerId();
   for (const colName of cols) {
     const snap = await getDocs(specificLedgerCol(ledgerId, colName));

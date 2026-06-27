@@ -28,6 +28,7 @@ const RealEstateInvestor = lazy(() => import('@/components/RealEstateInvestor'))
 const Invoicing = lazy(() => import('@/components/Invoicing'));
 const RecurringEntries = lazy(() => import('@/components/RecurringEntries'));
 const Banking = lazy(() => import('@/components/Banking'));
+const PersonalFinance = lazy(() => import('@/components/PersonalFinance'));
 
 function PageLoader() {
   return (
@@ -89,7 +90,7 @@ export function MainApp() {
       <Sidebar
         view={store.view}
         onViewChange={store.setView}
-        companyName={store.company?.name || ''}
+        companyName={store.company?.name || store.ledgers.find((l) => l.id === store.activeLedgerId)?.name || ''}
         yTunnus={store.company?.yTunnus || ''}
         lastBackup={store.lastBackup}
         userEmail={user?.email || ''}
@@ -118,6 +119,19 @@ export function MainApp() {
             cashBalance={store.cashBalance}
             cashHistory={cashHistory}
           />
+        )}
+
+        {(store.view === 'personal' || store.view === 'budget') && (
+          <Suspense fallback={<PageLoader />}>
+            <PersonalFinance
+              entries={store.personalEntries}
+              budgets={store.budgets}
+              accounts={store.accounts}
+              onAddEntry={store.addPersonalEntry}
+              onDeleteEntry={store.removePersonalEntry}
+              onSaveBudget={store.addBudget}
+            />
+          </Suspense>
         )}
 
         {store.view === 'journal' && (
@@ -209,7 +223,7 @@ export function MainApp() {
         {store.view === 'invoicing' && (
           <Suspense fallback={<PageLoader />}>
             <Invoicing
-              companyName={store.company?.name || ''}
+              companyName={store.company?.name || store.ledgers.find((l) => l.id === store.activeLedgerId)?.name || ''}
               companyYTunnus={store.company?.yTunnus || ''}
               companyAddress={`${store.company?.address || ''}, ${store.company?.postalCode || ''} ${store.company?.city || ''}`}
               accounts={store.accounts}

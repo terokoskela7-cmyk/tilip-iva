@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Building2, Home, User } from 'lucide-react';
+import { Building2, Home, User, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -30,6 +30,7 @@ const typeOptions: { value: Ledger['type']; label: string; icon: typeof Building
   { value: 'company', label: 'Yritys', icon: Building2 },
   { value: 'private', label: 'Yksityinen', icon: User },
   { value: 'housing-company', label: 'Asunto-osakeyhtiö', icon: Home },
+  { value: 'personal', label: 'Oma talous', icon: Wallet },
 ];
 
 export function LedgerModal({ open, onOpenChange, onCreate }: LedgerModalProps) {
@@ -121,7 +122,7 @@ export function LedgerModal({ open, onOpenChange, onCreate }: LedgerModalProps) 
               </SelectContent>
             </Select>
           </div>
-          {(type === 'company' || type === 'housing-company') && (
+          {(type === 'company') && (
             <div className="space-y-2">
               <Label htmlFor="ledger-ytunnus">Y-tunnus</Label>
               <Input
