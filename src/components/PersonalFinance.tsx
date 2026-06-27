@@ -191,11 +191,27 @@ function detectAmountColumn(headers: string[], row: string[]): number {
   return row.findIndex((cell) => parseAmount(cell) !== null);
 }
 
+function findColumn(headers: string[], patterns: RegExp[]): number {
+  const lowerHeaders = headers.map((h) => h.toLowerCase());
+  for (const pattern of patterns) {
+    const idx = lowerHeaders.findIndex((h) => pattern.test(h));
+    if (idx >= 0) return idx;
+  }
+  return -1;
+}
+
 function detectColumns(headers: string[]): { dateIdx: number; descIdx: number; messageIdx: number; amountIdx: number; typeIdx: number } {
   const lowerHeaders = headers.map((h) => h.toLowerCase());
   const dateIdx = lowerHeaders.findIndex((h) => /päivä|date|pvm|kirjauspäivä|arvo|maksupäivä|pvm/i.test(h));
-  const descIdx = lowerHeaders.findIndex((h) => /kuvaus|selitys|description|nimi|saaja|maksaja|maksunsaaja/i.test(h));
-  const messageIdx = lowerHeaders.findIndex((h) => /viesti|viite|lisätieto|message|ref/i.test(h));
+  const descIdx = findColumn(headers, [
+    /tarkenne|selitys|kuvaus|description/,
+    /viesti|viite|message|ref/,
+    /saajan nimi|maksajan nimi|saaja|maksaja|maksunsaaja|nimi/,
+  ]);
+  const messageIdx = findColumn(headers, [
+    /viesti|viite|message|ref/,
+    /tarkenne|selitys/,
+  ]);
   const amountIdx = detectAmountColumn(headers, []);
   const typeIdx = lowerHeaders.findIndex((h) => /tapahtumalaji|laji|tyyppi|tapahtuma|type/i.test(h));
   return { dateIdx, descIdx, messageIdx, amountIdx, typeIdx };
@@ -251,6 +267,38 @@ function autoCategorize(
   }
 
   return { parsedType: amount >= 0 ? 'income' : 'expense', category: 'muut', confidence: 'low' };
+}
+
+function CategorySelect({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const selected = allCategories.find((c) => c.id === value);
+  return (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger className="w-[150px] h-8 flex items-center gap-2">
+        {selected && <span className="w-2 h-2 rounded-full" style={{ backgroundColor: selected.color }} />}
+        <span className="truncate">{selected?.name || value}</span>
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="income-separator" disabled className="font-semibold text-gray-500">Tulot</SelectItem>
+        {incomeCategories.map((cat) => (
+          <SelectItem key={cat.id} value={cat.id}>
+            <span className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color }} />
+              {cat.name}
+            </span>
+          </SelectItem>
+        ))}
+        <SelectItem value="expense-separator" disabled className="font-semibold text-gray-500">Menot</SelectItem>
+        {expenseCategories.map((cat) => (
+          <SelectItem key={cat.id} value={cat.id}>
+            <span className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color }} />
+              {cat.name}
+            </span>
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
 }
 
 function parseCsv(text: string): CsvRow[] {
@@ -618,14 +666,7 @@ export default function PersonalFinance({
                         {row.amount > 0 ? '+' : ''}{row.amount.toFixed(2)} €
                       </td>
                       <td className="px-3 py-2">
-                        <Select value={row.category} onValueChange={(v) => updatePreviewCategory(row.id, v)}>
-                          <SelectTrigger className="w-[140px] h-8">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {allCategories.map((cat) => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
+                        <CategorySelect value={row.category} onChange={(v) => updatePreviewCategory(row.id, v)} />
                       </td>
                     </tr>
                   ))}
