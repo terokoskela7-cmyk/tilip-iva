@@ -248,6 +248,7 @@ interface ColumnMap {
   dateIndex: number;
   amountIndex: number;
   descriptionIndex: number;
+  counterpartyIndex: number;
   messageIndex: number;
   typeIndex: number;
 }
@@ -263,16 +264,33 @@ function detectColumns(headers: string[]): ColumnMap {
   };
   const dateIndex = find(['kirjauspäivä', 'päivämäärä', 'pvm', 'date', 'arvopäivä']);
   const amountIndex = find(['määrä', 'summa', 'euro', 'amount', 'määrä eur']);
-  const descriptionIndex = find(['saaja/maksaja', 'maksaja', 'saaja', 'tapahtuma', 'kuvaus', 'description', 'nimi', 'kauppa']);
+  // Prefer the actual counterparty name column (Nordea: "Saajan/Maksajan nimi")
+  const counterpartyIndex = find([
+    "saajan/maksajan nimi", "saajan nimi", "maksajan nimi", "vastaanottaja", "hyväksyjä",
+    "saaja/maksaja", "saaja", "maksaja", "nimi", "kauppa"
+  ]);
+  const descriptionIndex = find(['tapahtuma', 'tapahtumalaji', 'kuvaus', 'description', 'type']);
   const messageIndex = find(['viesti', 'viestit', 'message', 'selite', 'tarkenne', 'viitenumero']);
-  const typeIndex = find(['laji', 'tapahtumalaji', 'tyyppi', 'type']);
+  const typeIndex = find(['laji', 'tapahtumalaji', 'tyyppi']);
   return {
     dateIndex: dateIndex >= 0 ? dateIndex : 0,
     amountIndex: amountIndex >= 0 ? amountIndex : 2,
     descriptionIndex: descriptionIndex >= 0 ? descriptionIndex : 1,
+    counterpartyIndex: counterpartyIndex >= 0 ? counterpartyIndex : -1,
     messageIndex: messageIndex >= 0 ? messageIndex : 5,
     typeIndex: typeIndex >= 0 ? typeIndex : 3,
   };
+}
+
+function inferDirection(amount: number, txType: string, description: string): number {
+  const text = `${txType} ${description}`.toLowerCase();
+  const incomeMarkers = ['saapuva', 'talletus', 'hyvitys', 'palautus', 'palkka', 'tulo', 'credit', 'saatu', 'maksettu meille'];
+  const expenseMarkers = ['lähtevä', 'maksu', 'osto', 'debit', 'veloitus', 'maksettu', 'tilisiirto'];
+  const isIncome = incomeMarkers.some((m) => text.includes(m));
+  const isExpense = expenseMarkers.some((m) => text.includes(m));
+  if (amount > 0 && isExpense) return -amount;
+  if (amount < 0 && isIncome) return -amount;
+  return amount;
 }
 
 function parseCsv(text: string): CsvRow[] {
@@ -281,24 +299,35 @@ function parseCsv(text: string): CsvRow[] {
   const delimiter = text.includes('\t') ? '\t' : ';';
   const firstLine = lines[0].split(delimiter).map((c) => c.trim().replace(/^"|"$/g, '').toLowerCase());
   const hasHeader = firstLine.some((cell) =>
-    ['päivämäärä', 'kirjauspäivä', 'määrä', 'summa', 'tapahtuma', 'saaja', 'maksaja', 'viesti', 'kuvaus', 'pvm', 'date', 'amount'].some((kw) =>
+    ['päivämäärä', 'kirjauspäivä', 'määrä', 'summa', 'tapahtuma', 'saaja', 'maksaja', 'viesti', 'kuvaus', 'pvm', 'date', 'amount', 'saajan nimi'].some((kw) =>
       cell.includes(kw)
     )
   );
-  const columns = hasHeader ? detectColumns(firstLine) : { dateIndex: 0, amountIndex: 2, descriptionIndex: 1, messageIndex: 5, typeIndex: 3 };
+  const columns = hasHeader
+    ? detectColumns(firstLine)
+    : { dateIndex: 0, amountIndex: 2, descriptionIndex: 1, counterpartyIndex: -1, messageIndex: 5, typeIndex: 3 };
   const dataStart = hasHeader ? 1 : 0;
   const rows: CsvRow[] = [];
   for (let i = dataStart; i < lines.length; i++) {
     const parts = lines[i].split(delimiter).map((c) => c.trim().replace(/^"|"$/g, ''));
-    if (parts.length < Math.max(columns.dateIndex, columns.amountIndex, columns.descriptionIndex) + 1) continue;
+    const requiredIdx = Math.max(
+      columns.dateIndex,
+      columns.amountIndex,
+      columns.descriptionIndex,
+      columns.counterpartyIndex,
+      columns.messageIndex
+    );
+    if (parts.length < requiredIdx + 1) continue;
     const date = normalizeDate(parts[columns.dateIndex]);
-    const amount = parseAmount(parts[columns.amountIndex]);
-    const rawTapahtuma = cleanMerchantName(parts[columns.descriptionIndex] || '');
-    const rawTarkenne = cleanMerchantName(parts[columns.messageIndex] || '');
-    const description = rawTarkenne || rawTapahtuma || cleanMerchantName(parts[1] || '') || '';
+    const rawAmount = parseAmount(parts[columns.amountIndex]);
     const txType = parts[columns.typeIndex] || '';
-    const message = rawTarkenne ? rawTapahtuma : '';
-    if (!date || amount === null || !description) continue;
+    const eventName = cleanMerchantName(parts[columns.descriptionIndex] || '');
+    const counterparty = columns.counterpartyIndex >= 0 ? cleanMerchantName(parts[columns.counterpartyIndex] || '') : '';
+    const messageText = cleanMerchantName(parts[columns.messageIndex] || '');
+    const description = counterparty || eventName || messageText || cleanMerchantName(parts[1] || '') || '';
+    const message = counterparty && messageText ? messageText : eventName || '';
+    if (!date || rawAmount === null || !description) continue;
+    const amount = inferDirection(rawAmount, txType, description);
     rows.push({ date, description, amount, txType, message, raw: parts });
   }
   return rows;
