@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   Home, BookOpen, ListTree, BarChart3, Settings, User, CircleDot,
   GraduationCap, Rocket, Calculator, CalendarCheck, Wallet, Shield,
-  Building2, Receipt, Repeat, X, Menu, LogOut
+  Building2, Receipt, Repeat, X, Menu, LogOut, Landmark
 } from 'lucide-react';
 import type { View } from '@/types';
 
@@ -20,6 +20,7 @@ const navItems: { view: View; label: string; icon: typeof Home }[] = [
   { view: 'dashboard', label: 'Koti', icon: Home },
   { view: 'journal', label: 'Päiväkirja', icon: BookOpen },
   { view: 'accounts', label: 'Tilikartta', icon: ListTree },
+  { view: 'banking', label: 'Pankki', icon: Landmark },
   { view: 'reports', label: 'Raportit', icon: BarChart3 },
 ];
 

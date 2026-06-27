@@ -10,7 +10,7 @@ import {
   orderBy,
   writeBatch,
 } from 'firebase/firestore';
-import type { Account, Entry, Company, Customer, Invoice, RecurringEntry, VatPeriod } from '@/types';
+import type { Account, Entry, Company, Customer, Invoice, RecurringEntry, VatPeriod, BankAccount, BankTransaction } from '@/types';
 
 function getUid(): string {
   const uid = auth.currentUser?.uid;
@@ -123,6 +123,34 @@ export async function saveVatPeriod(period: VatPeriod): Promise<void> {
 
 export async function deleteVatPeriod(id: string): Promise<void> {
   await deleteDoc(userDoc('vatPeriods', id));
+}
+
+// === BANK ACCOUNTS ===
+export async function getAllBankAccounts(): Promise<BankAccount[]> {
+  const snap = await getDocs(query(userCol('bankAccounts'), orderBy('name')));
+  return snap.docs.map((d) => d.data() as BankAccount);
+}
+
+export async function saveBankAccount(account: BankAccount): Promise<void> {
+  await setDoc(userDoc('bankAccounts', account.id), account);
+}
+
+export async function deleteBankAccount(id: string): Promise<void> {
+  await deleteDoc(userDoc('bankAccounts', id));
+}
+
+// === BANK TRANSACTIONS ===
+export async function getAllTransactions(): Promise<BankTransaction[]> {
+  const snap = await getDocs(query(userCol('bankTransactions'), orderBy('date', 'desc')));
+  return snap.docs.map((d) => d.data() as BankTransaction);
+}
+
+export async function saveTransaction(tx: BankTransaction): Promise<void> {
+  await setDoc(userDoc('bankTransactions', tx.id), tx);
+}
+
+export async function deleteTransaction(id: string): Promise<void> {
+  await deleteDoc(userDoc('bankTransactions', id));
 }
 
 // === BATCH OPERATIONS ===

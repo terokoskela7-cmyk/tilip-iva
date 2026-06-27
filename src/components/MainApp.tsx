@@ -5,6 +5,7 @@ import Dashboard from '@/components/Dashboard';
 import Journal from '@/components/Journal';
 import ChartOfAccounts from '@/components/ChartOfAccounts';
 import Reports from '@/components/Reports';
+import Banking from '@/components/Banking';
 import SettingsPage from '@/components/SettingsPage';
 import Guides from '@/components/Guides';
 import EntrepreneurGuide from '@/components/EntrepreneurGuide';
@@ -132,6 +133,8 @@ export function MainApp() {
             totalVatDeductible={store.totalVatDeductible}
           />
         )}
+
+        {store.view === 'banking' && <Banking accounts={store.accounts} />}
 
         {store.view === 'settings' && (
           <SettingsPage

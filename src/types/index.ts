@@ -125,7 +125,7 @@ export interface VatPeriod {
   filedDate?: string;
 }
 
-export type View = 'dashboard' | 'journal' | 'accounts' | 'reports' | 'settings' | 'guides' | 'entrepreneur' | 'taxcalc' | 'checklist' | 'cashflow' | 'yel' | 'realestate' | 'invoicing' | 'recurring';
+export type View = 'dashboard' | 'journal' | 'accounts' | 'reports' | 'settings' | 'guides' | 'entrepreneur' | 'taxcalc' | 'checklist' | 'cashflow' | 'yel' | 'realestate' | 'invoicing' | 'recurring' | 'banking';
 
 export interface CashRegisterEntry {
   id: string;
@@ -134,3 +134,29 @@ export interface CashRegisterEntry {
   amount: number;
   type: 'in' | 'out';
 }
+
+export interface BankAccount {
+  id: string;
+  name: string;
+  iban: string;
+  bank: string;
+  currency: string;
+  initialBalance: number;
+  createdAt: string;
+}
+
+export interface BankTransaction {
+  id: string;
+  accountId: string;
+  date: string;
+  amount: number;
+  description: string;
+  reference: string;
+  counterparty: string;
+  matchedEntryId?: string;
+  matchedAccountId?: string;
+  status: 'unmatched' | 'matched' | 'ignored';
+  importedAt: string;
+}
+
+export type BankCSVFormat = 'nordea' | 'op' | 'danske' | 'handelsbanken' | 'generic';
