@@ -241,7 +241,13 @@ function parseCsv(text: string): CsvRow[] {
     if (parts.length < 6) continue;
     const date = normalizeDate(parts[0]);
     const amount = parseAmount(parts[2]) ?? parseAmount(parts[parts.length - 1]);
-    const description = parts[4] || parts[1] || '';
+    const tarkenne = parts[4] || '';
+    const merchantMatch = tarkenne.match(/^(?:\*\d+\s+\d+\.\d+\.\s+)?(.+)$/);
+    const merchantName = merchantMatch ? merchantMatch[1].trim() : tarkenne;
+    const rawDescription = (merchantName && merchantName !== 'Viesti puuttuu' && merchantName !== '-' && merchantName.length > 2)
+      ? merchantName
+      : (parts[1] || '');
+    const description = rawDescription;
     const txType = parts[3] || '';
     const message = parts[5] || parts[6] || '';
     if (!date || amount === null || !description) continue;
@@ -258,8 +264,8 @@ function CategorySelect({ value, onChange }: { value: string; onChange: (value: 
         {selected && <span className="w-2 h-2 rounded-full" style={{ backgroundColor: selected.color }} />}
         <span className="truncate">{selected?.name || value}</span>
       </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="income-separator" disabled className="font-semibold text-gray-500">Tulot</SelectItem>
+      <SelectContent className="max-h-72">
+        <div className="px-2 py-1 text-xs font-semibold text-gray-400 uppercase">Tulot</div>
         {incomeCategories.map((cat) => (
           <SelectItem key={cat.id} value={cat.id}>
             <span className="flex items-center gap-2">
@@ -268,7 +274,7 @@ function CategorySelect({ value, onChange }: { value: string; onChange: (value: 
             </span>
           </SelectItem>
         ))}
-        <SelectItem value="expense-separator" disabled className="font-semibold text-gray-500">Menot</SelectItem>
+        <div className="px-2 py-1 text-xs font-semibold text-gray-400 uppercase border-t mt-1">Menot</div>
         {expenseCategories.map((cat) => (
           <SelectItem key={cat.id} value={cat.id}>
             <span className="flex items-center gap-2">
@@ -444,15 +450,15 @@ export default function PersonalFinance({
   const updatePreviewCategory = (id: string, category: string) => {
     setPreviewRows((prev) =>
       prev
-        ? prev.map((r) =>
-            r.id === id
-              ? {
-                  ...r,
-                  category,
-                  type: incomeCategories.some((c) => c.id === category) ? 'income' : 'expense',
-                }
-              : r
-          )
+        ? prev.map((r) => {
+            if (r.id !== id) return r;
+            const isIncomeCat = incomeCategories.some((c) => c.id === category);
+            return {
+              ...r,
+              category,
+              type: isIncomeCat ? 'income' : 'expense',
+            };
+          })
         : null
     );
   };
