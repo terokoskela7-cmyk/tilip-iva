@@ -16,6 +16,7 @@ import RealEstateInvestor from '@/components/RealEstateInvestor';
 import Invoicing from '@/components/Invoicing';
 import RecurringEntries from '@/components/RecurringEntries';
 import OnboardingTour from '@/components/OnboardingTour';
+import { Onboarding } from '@/components/Onboarding';
 import SmartHelp from '@/components/SmartHelp';
 import EntryModal from '@/components/EntryModal';
 import { useAuth } from '@/context/AuthContext';
@@ -56,7 +57,7 @@ export function MainApp() {
     });
   }, [store.cashEntries]);
 
-  if (store.loading) {
+  if (store.loading || store.hasCompany === null) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-gray-50">
         <div className="flex flex-col items-center gap-3">
@@ -65,6 +66,10 @@ export function MainApp() {
         </div>
       </div>
     );
+  }
+
+  if (!store.hasCompany) {
+    return <Onboarding onComplete={store.loadData} />;
   }
 
   return (

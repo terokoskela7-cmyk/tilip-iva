@@ -4,7 +4,6 @@ import {
   getAllAccounts,
   getAllEntries,
   getCompany,
-  getAllCashRegisterEntries,
   getAllCustomers,
   getAllInvoices,
   getAllRecurringEntries,
@@ -13,9 +12,17 @@ import {
   deleteEntry,
   deleteAccount,
   saveCompany,
+  saveCustomer,
+  saveInvoice,
+  saveRecurringEntry,
+  deleteCustomer,
+  deleteInvoice,
+  deleteRecurringEntry,
+} from '@/lib/firestore';
+import {
+  getAllCashRegisterEntries,
   saveCashRegisterEntry,
 } from '@/lib/db';
-import { seedDatabase } from '@/lib/seed';
 
 export function useStore() {
   const [view, setView] = useState<View>('dashboard');
@@ -27,6 +34,7 @@ export function useStore() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [recurringEntries, setRecurringEntries] = useState<RecurringEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasCompany, setHasCompany] = useState<boolean | null>(null);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [entryModalOpen, setEntryModalOpen] = useState(false);
@@ -42,11 +50,19 @@ export function useStore() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      await seedDatabase();
-      const [acc, ent, comp, cash, cust, inv, rec] = await Promise.all([
+      const comp = await getCompany();
+      if (!comp) {
+        setHasCompany(false);
+        setCompany(null);
+        setLoading(false);
+        return;
+      }
+      setHasCompany(true);
+      setCompany(comp);
+
+      const [acc, ent, cash, cust, inv, rec] = await Promise.all([
         getAllAccounts(),
         getAllEntries(),
-        getCompany(),
         getAllCashRegisterEntries(),
         getAllCustomers(),
         getAllInvoices(),
@@ -54,7 +70,6 @@ export function useStore() {
       ]);
       setAccounts(acc);
       setEntries(ent);
-      setCompany(comp || null);
       setCashEntries(cash);
       setCustomers(cust);
       setInvoices(inv);
@@ -85,6 +100,21 @@ export function useStore() {
   const refreshCashEntries = useCallback(async () => {
     const cash = await getAllCashRegisterEntries();
     setCashEntries(cash);
+  }, []);
+
+  const refreshCustomers = useCallback(async () => {
+    const cust = await getAllCustomers();
+    setCustomers(cust);
+  }, []);
+
+  const refreshInvoices = useCallback(async () => {
+    const inv = await getAllInvoices();
+    setInvoices(inv);
+  }, []);
+
+  const refreshRecurring = useCallback(async () => {
+    const rec = await getAllRecurringEntries();
+    setRecurringEntries(rec);
   }, []);
 
   const addEntry = useCallback(async (entry: Entry) => {
@@ -129,20 +159,47 @@ export function useStore() {
     showToast('Kassatapahtuma tallennettu', 'success');
   }, [refreshCashEntries, showToast]);
 
-  const refreshCustomers = useCallback(async () => {
-    const cust = await getAllCustomers();
-    setCustomers(cust);
-  }, []);
+  const addCustomer = useCallback(async (customer: Customer) => {
+    await saveCustomer(customer);
+    await refreshCustomers();
+    setLastBackup(new Date().toLocaleTimeString('fi-FI'));
+    showToast('Asiakas tallennettu', 'success');
+  }, [refreshCustomers, showToast]);
 
-  const refreshInvoices = useCallback(async () => {
-    const inv = await getAllInvoices();
-    setInvoices(inv);
-  }, []);
+  const removeCustomer = useCallback(async (id: string) => {
+    await deleteCustomer(id);
+    await refreshCustomers();
+    setLastBackup(new Date().toLocaleTimeString('fi-FI'));
+    showToast('Asiakas poistettu', 'success');
+  }, [refreshCustomers, showToast]);
 
-  const refreshRecurring = useCallback(async () => {
-    const rec = await getAllRecurringEntries();
-    setRecurringEntries(rec);
-  }, []);
+  const addInvoice = useCallback(async (invoice: Invoice) => {
+    await saveInvoice(invoice);
+    await refreshInvoices();
+    setLastBackup(new Date().toLocaleTimeString('fi-FI'));
+    showToast('Lasku tallennettu', 'success');
+  }, [refreshInvoices, showToast]);
+
+  const removeInvoice = useCallback(async (id: string) => {
+    await deleteInvoice(id);
+    await refreshInvoices();
+    setLastBackup(new Date().toLocaleTimeString('fi-FI'));
+    showToast('Lasku poistettu', 'success');
+  }, [refreshInvoices, showToast]);
+
+  const addRecurringEntry = useCallback(async (entry: RecurringEntry) => {
+    await saveRecurringEntry(entry);
+    await refreshRecurring();
+    setLastBackup(new Date().toLocaleTimeString('fi-FI'));
+    showToast('Toistuva tosite tallennettu', 'success');
+  }, [refreshRecurring, showToast]);
+
+  const removeRecurringEntry = useCallback(async (id: string) => {
+    await deleteRecurringEntry(id);
+    await refreshRecurring();
+    setLastBackup(new Date().toLocaleTimeString('fi-FI'));
+    showToast('Toistuva tosite poistettu', 'success');
+  }, [refreshRecurring, showToast]);
 
   const filteredEntries = entries.filter((e) => {
     if (selectedAccountId) {
@@ -202,6 +259,7 @@ export function useStore() {
     company,
     cashEntries,
     loading,
+    hasCompany,
     selectedAccountId,
     setSelectedAccountId,
     searchQuery,
@@ -231,5 +289,11 @@ export function useStore() {
     refreshAccounts,
     refreshEntries,
     loadData,
+    addCustomer,
+    removeCustomer,
+    addInvoice,
+    removeInvoice,
+    addRecurringEntry,
+    removeRecurringEntry,
   };
 }
