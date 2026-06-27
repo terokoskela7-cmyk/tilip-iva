@@ -55,20 +55,22 @@ interface CsvRow {
   date: string;
   description: string;
   amount: number;
+  type?: string;
+  message?: string;
   raw: string[];
 }
 
 interface ParsedRow extends CsvRow {
   id: string;
-  type: 'income' | 'expense';
+  parsedType: 'income' | 'expense' | 'skip';
   category: string;
   confidence: 'high' | 'medium' | 'low';
   selected: boolean;
 }
 
 const DEMO_ACCOUNTS: DemoAccount[] = [
-  { id: '1', name: 'Pankkitili', balance: 2500, type: 'checking' },
-  { id: '2', name: 'Säästötili', balance: 5000, type: 'savings' },
+  { id: 'checking', name: 'Kulutustili', balance: 2500, type: 'checking' },
+  { id: 'savings', name: 'Palkka-Säästötili', balance: 5000, type: 'savings' },
   { id: 'cash', name: 'Käteiskassa', balance: 150, type: 'cash' },
 ];
 
@@ -108,6 +110,11 @@ const expenseCategories = [
   { id: 'terveys', name: 'Terveys', color: '#10b981' },
   { id: 'vaatteet', name: 'Vaatteet', color: '#06b6d4' },
   { id: 'koulutus', name: 'Koulutus', color: '#3b82f6' },
+  { id: 'children', name: 'Lapset', color: '#8b5cf6' },
+  { id: 'travel', name: 'Matkailu', color: '#ec4899' },
+  { id: 'insurance', name: 'Vakuutukset', color: '#14b8a6' },
+  { id: 'hobbies', name: 'Harrastukset', color: '#f43f5e' },
+  { id: 'bills', name: 'Laskut', color: '#64748b' },
   { id: 'muut', name: 'Muut', color: '#6366f1' },
 ];
 
@@ -121,18 +128,25 @@ const incomeCategories = [
 const allCategories = [...incomeCategories, ...expenseCategories];
 
 const CATEGORY_KEYWORDS: Record<string, string[]> = {
-  palkka: ['palkka', 'salary', 'palkkio', 'korvaus', 'palkkaus', 'wage', 'payroll'],
-  sivutulo: ['sivutulo', 'sivu', 'freelance', 'konsultti', 'vuokratulo', 'vuokra', 'osinko', 'hyvitys', 'korvaus'],
-  myynti: ['myynti', 'myy', 'myydy', 'kauppa', 'myyntituotto', 'myyty'],
-  ruoka: ['ruoka', 'prisma', 'k-market', 's-market', 'alepa', 'sale', 'lidl', 'stockmann', 'citymarket', 'kärkkäinen', 'food', 'sushi', 'pizza', 'ravintola', 'kahvila', 'kahvi', 'ruokakauppa', 'supermarket', 'market'],
-  asuminen: ['asuminen', 'vuokra', 'hoitovastike', 'vastike', 'sähkö', 'vesi', 'lämmitys', 'kiinteistö', 'asunto', 'dna', 'elisa', 'tel', 'nett', 'kiinteistöhuolto', 'isännöinti'],
-  liikenne: ['liikenne', 'bussi', 'juna', 'metro', 'taksi', 'uber', 'bolt', 'polttoaine', 'bensa', 'diesel', 'auto', 'rengas', 'huolto', 'katsastus', 'pysäköinti', 'vr', ' hsl', 'matkakortti'],
-  viihde: ['viihde', 'elokuva', 'konsertti', 'teatteri', 'spotify', 'netflix', 'hbo', 'disney', 'youtube', 'peli', 'ravintola', 'baari', 'pub', 'olut', 'viini', 'harrastus', 'keilaus'],
-  terveys: ['terveys', 'apteekki', 'lääkäri', 'hammas', 'sairaala', 'kela', 'vakuutus', 'terveydenhuolto', 'fysioterapia', 'psykologi', 'optikko', 'mehiläinen', 'terveystalo', 'pihlajalinna'],
-  vaatteet: ['vaatteet', 'vaate', 'kenkä', 'h&m', 'zalando', 'cubus', 'dressmann', 'gina', 'tokmanni', 'asko', 'ikea', 'sisustus', 'huonekalu', 'muoti'],
-  koulutus: ['koulutus', 'kirja', 'opiskelu', 'kurssi', 'koulu', 'yliopisto', 'kirjasto', 'sanoma', 'tietokirja', 'lukio', 'ammattikoulu', 'opinto', 'luent'],
-  muut: ['lahjoitus', 'jäsenmaksu', 'maksu', 'kulu', 'muu', 'pankkikulu', 'kulut', 'nosto', 'siirto'],
+  palkka: ['palkka', 'salary', 'palkkio', 'korvaus', 'palkkaus', 'wage', 'payroll', 'tulotili', 'tilit', 'palkkatulo'],
+  sivutulo: ['sivutulo', 'sivu', 'freelance', 'konsultti', 'vuokratulo', 'vuokra', 'osinko', 'hyvitys', 'korvaus', 'tuki', 'etu', 'palkkio'],
+  myynti: ['myynti', 'myy', 'myydy', 'kauppa', 'myyntituotto', 'myyty', 'myyjä', 'kauppapaikka'],
+  ruoka: ['ruoka', 'prisma', 'k-market', 's-market', 'alepa', 'sale', 'lidl', 'stockmann', 'citymarket', 'kärkkäinen', 'food', 'sushi', 'pizza', 'ravintola', 'kahvila', 'kahvi', 'ruokakauppa', 'supermarket', 'market', 'ruokatori', 'hok elanto', 'siwa', 'valintatalo', 'makuuni', 'k-supermarket', 'minimani', 'mestarin herkku', 'anttila', 'sale ', 'foodora', 'wolt', 'pizza', 'kebab', 'burger', 'mcdonalds', 'hesburger'],
+  asuminen: ['asuminen', 'vuokra', 'hoitovastike', 'vastike', 'sähkö', 'vesi', 'lämmitys', 'kiinteistö', 'asunto', 'dna', 'elisa', 'tel', 'nett', 'kiinteistöhuolto', 'isännöinti', 'remontti', 'putki', 'sähkömies', 'taloyhtiö', 'kunnossapito', 'kotivakuutus', 'asuntolaina', 'korko', 'lyhennys', 'yhtiövastike', 'vesimaksu', 'lämmitysöljy'],
+  liikenne: ['liikenne', 'bussi', 'juna', 'metro', 'taksi', 'uber', 'bolt', 'polttoaine', 'bensa', 'diesel', 'auto', 'rengas', 'huolto', 'katsastus', 'pysäköinti', 'vr', ' hsl', 'matkakortti', 'neste', 'teboil', 'shell', 'abc', 'huoltoasema', 'moottoripyörä', 'skootteri', 'pysäköinti', 'autopesu'],
+  viihde: ['viihde', 'elokuva', 'konsertti', 'teatteri', 'spotify', 'netflix', 'hbo', 'disney', 'youtube', 'peli', 'ravintola', 'baari', 'pub', 'olut', 'viini', 'harrastus', 'keilaus', 'casino', 'bailut', 'yökerho', 'karaoke', 'tapahtuma', 'festivaali', 'musiikki'],
+  terveys: ['terveys', 'apteekki', 'lääkäri', 'hammas', 'sairaala', 'kela', 'vakuutus', 'terveydenhuolto', 'fysioterapia', 'psykologi', 'optikko', 'mehiläinen', 'terveystalo', 'pihlajalinna', 'lääke', 'resepti', 'työterveys', 'sairaala', 'erikoislääkäri'],
+  vaatteet: ['vaatteet', 'vaate', 'kenkä', 'h&m', 'zalando', 'cubus', 'dressmann', 'gina', 'tokmanni', 'asko', 'ikea', 'sisustus', 'huonekalu', 'muoti', 'vaatekauppa', 'urheilukauppa', 'intersport', 'xxl', ' Stadium', 'halonen', 'kappahl', 'lc waikiki'],
+  koulutus: ['koulutus', 'kirja', 'opiskelu', 'kurssi', 'koulu', 'yliopisto', 'kirjasto', 'sanoma', 'tietokirja', 'lukio', 'ammattikoulu', 'opinto', 'luent', 'oppikirja', 'suomen kielen', 'kielikoulu', 'valmennus', 'tutkinto'],
+  children: ['lapsi', 'lasten', 'päiväkoti', 'koulu', 'kerho', 'vaippa', 'lelu', 'lastenvaunut', 'vauva', 'taaper', 'kummi', 'lastenhoito', 'nuoriso', 'harrastusmaksu', 'urheilukoulu', 'muskari', 'kerhomaksu'],
+  travel: ['matka', 'lento', 'hotelli', 'juna', 'risteily', 'vuokra-auto', 'lomamatka', 'matkavakuutus', 'bussi', 'rautatie', 'ryanair', 'finnair', 'norwegian', 'booking', 'airbnb', 'hostelli', 'turisti', 'matkalippu'],
+  insurance: ['vakuutus', 'vakuutusmaksu', 'if ', 'lähivakuutus', 'pohjola', 'fennia', 'tapiola', 'turva', 'eläkevakuutus', 'henkivakuutus', 'kasko', 'liikennevakuutus', 'kotivakuutus', 'tapaturmavakuutus'],
+  hobbies: ['harrastus', 'liikunta', 'kuntosali', 'urheilu', 'golf', 'tennis', 'jalkapallo', 'jääkiekko', 'salibandy', 'uinti', 'hiihto', 'pyöräily', 'kalastus', 'metsästys', 'käsityö', 'tanssi', 'musiikki', 'soitto', 'kuoro', 'partio', 'gym', 'fitness', 'crossfit'],
+  bills: ['lasku', 'maksu', 'suoraveloitus', 'e-lasku', 'laskutus', 'perintä', 'sähkölasku', 'puhelinlasku', 'nettilasku', 'jätehuolto', 'vesilasku', 'kaupungin', 'kunnallisvero', 'jäsenmaksu', 'tilausmaksu', 'käyttömaksu'],
+  muut: ['lahjoitus', 'jäsenmaksu', 'maksu', 'kulu', 'muu', 'pankkikulu', 'kulut', 'nosto', 'siirto', 'palkki', 'provisio', 'varaus'],
 };
+
+const SKIP_KEYWORDS = ['oma tilisiirto', 'tilisiirto', 'säästötili', 'säästäjä debit', 'säästäjä', 'luotolta siirto', 'luotto', 'siirto', 'panomaatti', 'käteisnosto'];
 
 function generateId(): string {
   return Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
@@ -177,50 +191,87 @@ function detectAmountColumn(headers: string[], row: string[]): number {
   return row.findIndex((cell) => parseAmount(cell) !== null);
 }
 
+function detectColumns(headers: string[]): { dateIdx: number; descIdx: number; messageIdx: number; amountIdx: number; typeIdx: number } {
+  const lowerHeaders = headers.map((h) => h.toLowerCase());
+  const dateIdx = lowerHeaders.findIndex((h) => /päivä|date|pvm|kirjauspäivä|arvo|maksupäivä|pvm/i.test(h));
+  const descIdx = lowerHeaders.findIndex((h) => /kuvaus|selitys|description|nimi|saaja|maksaja|maksunsaaja/i.test(h));
+  const messageIdx = lowerHeaders.findIndex((h) => /viesti|viite|lisätieto|message|ref/i.test(h));
+  const amountIdx = detectAmountColumn(headers, []);
+  const typeIdx = lowerHeaders.findIndex((h) => /tapahtumalaji|laji|tyyppi|tapahtuma|type/i.test(h));
+  return { dateIdx, descIdx, messageIdx, amountIdx, typeIdx };
+}
+
+function shouldSkip(description: string, message: string, type: string): boolean {
+  const combined = `${description} ${message} ${type}`.toLowerCase();
+  return SKIP_KEYWORDS.some((k) => combined.includes(k));
+}
+
+function autoCategorize(
+  description: string,
+  amount: number,
+  type: string,
+  message: string
+): { parsedType: 'income' | 'expense' | 'skip'; category: string; confidence: 'high' | 'medium' | 'low' } {
+  if (shouldSkip(description, message, type)) {
+    return { parsedType: 'skip', category: 'muut', confidence: 'high' };
+  }
+
+  const combinedText = `${description} ${message}`.toLowerCase();
+
+  // Housing-related transaction types override everything
+  const housingTypes = ['korko', 'lyhennys', 'hoitovastike', 'yhtiövastike', 'asuntolaina', 'laina'];
+  if (housingTypes.some((h) => type.toLowerCase().includes(h) || combinedText.includes(h))) {
+    return { parsedType: 'expense', category: 'asuminen', confidence: 'high' };
+  }
+
+  // Income first
+  for (const [cat, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
+    if (!incomeCategories.some((c) => c.id === cat)) continue;
+    if (keywords.some((k) => combinedText.includes(k))) {
+      return { parsedType: 'income', category: cat, confidence: 'high' };
+    }
+  }
+
+  // Expense categories
+  for (const [cat, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
+    if (!expenseCategories.some((c) => c.id === cat)) continue;
+    if (keywords.some((k) => combinedText.includes(k))) {
+      return { parsedType: 'expense', category: cat, confidence: 'high' };
+    }
+  }
+
+  // Partial matches
+  for (const [cat, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
+    if (!expenseCategories.some((c) => c.id === cat)) continue;
+    for (const kw of keywords) {
+      if (kw.length > 3 && combinedText.includes(kw.slice(0, kw.length - 1))) {
+        return { parsedType: 'expense', category: cat, confidence: 'medium' };
+      }
+    }
+  }
+
+  return { parsedType: amount >= 0 ? 'income' : 'expense', category: 'muut', confidence: 'low' };
+}
+
 function parseCsv(text: string): CsvRow[] {
   const lines = text.trim().split(/\r?\n/);
   if (lines.length < 2) return [];
   const delimiter = text.includes('\t') ? '\t' : ';';
   const header = lines[0].split(delimiter).map((h) => h.trim().replace(/^"|"$/g, ''));
+  const { dateIdx, descIdx, messageIdx, amountIdx, typeIdx } = detectColumns(header);
   const rows: CsvRow[] = [];
   for (let i = 1; i < lines.length; i++) {
     const cells = lines[i].split(delimiter).map((c) => c.trim().replace(/^"|"$/g, ''));
     if (cells.length < 3) continue;
-    const dateIdx = header.findIndex((h) => /päivä|date|pvm|kirjauspäivä|arvo|maksupäivä/i.test(h)) || 0;
-    const descIdx = header.findIndex((h) => /kuvaus|selitys|description|nimi|saaja|maksaja|viite/i.test(h));
-    const amountIdx = detectAmountColumn(header, cells);
     const date = normalizeDate(cells[Math.max(0, dateIdx)]);
     const description = cells[descIdx >= 0 ? descIdx : 1] || '';
+    const message = messageIdx >= 0 ? cells[messageIdx] : '';
+    const type = typeIdx >= 0 ? cells[typeIdx] : '';
     const amount = parseAmount(cells[amountIdx >= 0 ? amountIdx : cells.length - 1]);
     if (!date || amount === null || !description) continue;
-    rows.push({ date, description, amount, raw: cells });
+    rows.push({ date, description, amount, type, message, raw: cells });
   }
   return rows;
-}
-
-function autoCategorize(description: string, amount: number): { type: 'income' | 'expense'; category: string; confidence: 'high' | 'medium' | 'low' } {
-  const desc = description.toLowerCase();
-  for (const [cat, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
-    if (!incomeCategories.some((c) => c.id === cat)) continue;
-    if (keywords.some((k) => desc.includes(k))) {
-      return { type: 'income', category: cat, confidence: 'high' };
-    }
-  }
-  for (const [cat, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
-    if (!expenseCategories.some((c) => c.id === cat)) continue;
-    if (keywords.some((k) => desc.includes(k))) {
-      return { type: 'expense', category: cat, confidence: 'high' };
-    }
-  }
-  for (const [cat, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
-    if (!expenseCategories.some((c) => c.id === cat)) continue;
-    for (const kw of keywords) {
-      if (kw.length > 3 && desc.includes(kw.slice(0, kw.length - 1))) {
-        return { type: 'expense', category: cat, confidence: 'medium' };
-      }
-    }
-  }
-  return { type: amount >= 0 ? 'income' : 'expense', category: 'muut', confidence: 'low' };
 }
 
 interface PersonalFinanceProps {
@@ -246,6 +297,7 @@ export default function PersonalFinance({
     loadFromStorage<DemoAccount[]>(LS_ACCOUNTS, DEMO_ACCOUNTS)
   );
   const [demoMode, setDemoMode] = useState(false);
+  const [csvAccountId, setCsvAccountId] = useState<string>('checking');
 
   const [type, setType] = useState<'income' | 'expense'>('expense');
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -354,17 +406,19 @@ export default function PersonalFinance({
     reader.onload = (ev) => {
       const text = String(ev.target?.result || '');
       const rows = parseCsv(text);
-      const parsed: ParsedRow[] = rows.map((r) => {
-        const auto = autoCategorize(r.description, r.amount);
-        return {
-          ...r,
-          id: generateId(),
-          type: auto.type,
-          category: auto.category,
-          confidence: auto.confidence,
-          selected: true,
-        };
-      });
+      const parsed: ParsedRow[] = rows
+        .map((r) => {
+          const auto = autoCategorize(r.description, r.amount, r.type || '', r.message || '');
+          return {
+            ...r,
+            id: generateId(),
+            parsedType: auto.parsedType,
+            category: auto.category,
+            confidence: auto.confidence,
+            selected: auto.parsedType !== 'skip',
+          };
+        })
+        .filter((r) => r.parsedType !== 'skip');
       setPreviewRows(parsed);
     };
     reader.readAsText(file);
@@ -387,7 +441,7 @@ export default function PersonalFinance({
               ? {
                   ...r,
                   category,
-                  type: incomeCategories.some((c) => c.id === category) ? 'income' : 'expense',
+                  parsedType: incomeCategories.some((c) => c.id === category) ? 'income' : 'expense',
                 }
               : r
           )
@@ -403,9 +457,9 @@ export default function PersonalFinance({
       id: generateId(),
       date: row.date,
       description: row.description,
-      amount: row.type === 'income' ? Math.abs(row.amount) : -Math.abs(row.amount),
+      amount: row.parsedType === 'income' ? Math.abs(row.amount) : -Math.abs(row.amount),
       category: row.category,
-      accountId: accountId === 'cash' ? undefined : accountId,
+      accountId: csvAccountId === 'cash' ? undefined : csvAccountId,
       createdAt: now,
     }));
     setLocalEntries((prev) => [...newEntries, ...prev]);
@@ -445,8 +499,8 @@ export default function PersonalFinance({
   const previewTotals = useMemo(() => {
     if (!previewRows) return null;
     const selected = previewRows.filter((r) => r.selected);
-    const income = selected.filter((r) => r.type === 'income').reduce((sum, r) => sum + Math.abs(r.amount), 0);
-    const expense = selected.filter((r) => r.type === 'expense').reduce((sum, r) => sum + Math.abs(r.amount), 0);
+    const income = selected.filter((r) => r.parsedType === 'income').reduce((sum, r) => sum + Math.abs(r.amount), 0);
+    const expense = selected.filter((r) => r.parsedType === 'expense').reduce((sum, r) => sum + Math.abs(r.amount), 0);
     return { income, expense, count: selected.length, total: previewRows.length };
   }, [previewRows]);
 
@@ -483,14 +537,31 @@ export default function PersonalFinance({
               ))}
             </SelectContent>
           </Select>
+
+          <div className="flex items-center gap-2 bg-white border rounded-md px-2 py-1">
+            <Label className="text-xs text-gray-500 whitespace-nowrap">CSV-tili</Label>
+            <Select value={csvAccountId} onValueChange={setCsvAccountId}>
+              <SelectTrigger className="w-[150px] border-0 shadow-none h-8">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {localAccounts.filter((a) => a.type !== 'cash').map((acc) => (
+                  <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
             <Upload className="w-4 h-4 mr-2" /> CSV
           </Button>
           <input ref={fileInputRef} type="file" accept=".csv,.txt" className="hidden" onChange={handleFileUpload} />
+
           <Button variant={demoMode ? 'default' : 'outline'} size="sm" onClick={toggleDemo}>
             {demoMode ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
             {demoMode ? 'Demo pois' : 'Demo'}
           </Button>
+
           {hasData ? (
             <Button variant="destructive" size="sm" onClick={clearAllData}>
               <Trash2 className="w-4 h-4 mr-2" /> Tyhjennä
@@ -534,7 +605,10 @@ export default function PersonalFinance({
                     <tr key={row.id} className={row.selected ? '' : 'opacity-50'}>
                       <td className="px-3 py-2"><Checkbox checked={row.selected} onCheckedChange={() => toggleRow(row.id)} /></td>
                       <td className="px-3 py-2">{row.date}</td>
-                      <td className="px-3 py-2">{row.description}</td>
+                      <td className="px-3 py-2">
+                        {row.description}
+                        {row.message && <p className="text-xs text-gray-500">{row.message}</p>}
+                      </td>
                       <td className="px-3 py-2">
                         <Badge variant={row.confidence === 'high' ? 'default' : row.confidence === 'medium' ? 'secondary' : 'outline'}>
                           {row.confidence === 'high' ? 'Korkea' : row.confidence === 'medium' ? 'Keski' : 'Matala'}
