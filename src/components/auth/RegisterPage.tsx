@@ -8,35 +8,33 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Mail, Lock, BookOpen } from 'lucide-react';
 import { FirebaseError } from 'firebase/app';
 
-interface LoginPageProps {
-  onSwitchToRegister: () => void;
+interface RegisterPageProps {
+  onSwitchToLogin: () => void;
 }
 
-export function LoginPage({ onSwitchToRegister }: LoginPageProps) {
+export function RegisterPage({ onSwitchToLogin }: RegisterPageProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const { signIn, loading } = useAuth();
+  const [success, setSuccess] = useState<string | null>(null);
+  const { signUp, loading } = useAuth();
 
   const getErrorMessage = (err: unknown): string => {
     if (err instanceof FirebaseError) {
       switch (err.code) {
         case 'auth/invalid-email':
           return 'Sähköpostiosoite on virheellinen.';
-        case 'auth/user-disabled':
-          return 'Käyttäjätili on poistettu käytöstä.';
-        case 'auth/user-not-found':
-          return 'Käyttäjää ei löytynyt. Tarkista sähköpostiosoite.';
-        case 'auth/wrong-password':
-          return 'Väärä salasana. Yritä uudelleen.';
-        case 'auth/invalid-credential':
-          return 'Virheelliset kirjautumistiedot. Tarkista sähköposti ja salasana.';
+        case 'auth/email-already-in-use':
+          return 'Sähköpostiosoite on jo käytössä. Kirjaudu sisään.';
+        case 'auth/weak-password':
+          return 'Salasana on liian heikko. Käytä vähintään 6 merkkiä.';
         case 'auth/too-many-requests':
           return 'Liian monta yritystä. Yritä myöhemmin uudelleen.';
         case 'auth/network-request-failed':
           return 'Verkkovirhe. Tarkista internet-yhteys.';
         default:
-          return 'Tapahtui virhe. Yritä uudelleen.';
+          return 'Tapahtui virhe rekisteröitymisessä. Yritä uudelleen.';
       }
     }
     return 'Tuntematon virhe. Yritä uudelleen.';
@@ -45,14 +43,29 @@ export function LoginPage({ onSwitchToRegister }: LoginPageProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setSuccess(null);
 
-    if (!email.trim() || !password.trim()) {
-      setError('Syötä sekä sähköposti että salasana.');
+    if (!email.trim() || !password.trim() || !confirmPassword.trim()) {
+      setError('Täytä kaikki kentät.');
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Salasanan on oltava vähintään 6 merkkiä pitkä.');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('Salasanat eivät täsmää.');
       return;
     }
 
     try {
-      await signIn(email, password);
+      await signUp(email, password);
+      setSuccess('Tili luotu onnistuneesti! Voit nyt kirjautua sisään.');
+      setTimeout(() => {
+        onSwitchToLogin();
+      }, 2000);
     } catch (err) {
       setError(getErrorMessage(err));
     }
@@ -70,9 +83,9 @@ export function LoginPage({ onSwitchToRegister }: LoginPageProps) {
 
         <Card>
           <CardHeader className="space-y-1">
-            <CardTitle className="text-xl text-center">Kirjaudu sisään</CardTitle>
+            <CardTitle className="text-xl text-center">Luo uusi tili</CardTitle>
             <CardDescription className="text-center">
-              Syötä sähköpostisi ja salasanasi
+              Täytä tiedot ja aloita kirjanpitosi
             </CardDescription>
           </CardHeader>
 
@@ -81,6 +94,11 @@ export function LoginPage({ onSwitchToRegister }: LoginPageProps) {
               {error && (
                 <Alert variant="destructive">
                   <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+              {success && (
+                <Alert className="bg-green-50 text-green-800 border-green-200">
+                  <AlertDescription>{success}</AlertDescription>
                 </Alert>
               )}
 
@@ -113,7 +131,25 @@ export function LoginPage({ onSwitchToRegister }: LoginPageProps) {
                     onChange={(e) => setPassword(e.target.value)}
                     className="pl-10"
                     disabled={loading}
-                    autoComplete="current-password"
+                    autoComplete="new-password"
+                  />
+                </div>
+                <p className="text-xs text-slate-500">Vähintään 6 merkkiä</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Vahvista salasana</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    placeholder="••••••••"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="pl-10"
+                    disabled={loading}
+                    autoComplete="new-password"
                   />
                 </div>
               </div>
@@ -124,22 +160,22 @@ export function LoginPage({ onSwitchToRegister }: LoginPageProps) {
                 {loading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Ladataan...
+                    Luodaan tiliä...
                   </>
                 ) : (
-                  'Kirjaudu'
+                  'Luo tili'
                 )}
               </Button>
 
               <p className="text-sm text-slate-600 text-center">
-                Eikö sinulla ole tiliä?{' '}
+                Onko sinulla jo tili?{' '}
                 <button
                   type="button"
-                  onClick={onSwitchToRegister}
+                  onClick={onSwitchToLogin}
                   className="text-blue-600 hover:text-blue-700 font-medium underline-offset-4 hover:underline"
                   disabled={loading}
                 >
-                  Luo uusi tili
+                  Kirjaudu sisään
                 </button>
               </p>
             </CardFooter>
@@ -147,7 +183,7 @@ export function LoginPage({ onSwitchToRegister }: LoginPageProps) {
         </Card>
 
         <p className="text-center text-xs text-slate-500 mt-6">
-          Kirjautumalla hyväksyt sovelluksen käyttöehdot.
+          Rekisteröitymällä hyväksyt sovelluksen käyttöehdot.
         </p>
       </div>
     </div>

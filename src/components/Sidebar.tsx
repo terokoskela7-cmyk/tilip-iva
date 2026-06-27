@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   Home, BookOpen, ListTree, BarChart3, Settings, User, CircleDot,
   GraduationCap, Rocket, Calculator, CalendarCheck, Wallet, Shield,
-  Building2, Receipt, Repeat, X, Menu
+  Building2, Receipt, Repeat, X, Menu, LogOut
 } from 'lucide-react';
 import type { View } from '@/types';
 
@@ -12,6 +12,8 @@ interface SidebarProps {
   companyName: string;
   yTunnus: string;
   lastBackup: string | null;
+  userEmail?: string;
+  onLogout?: () => void;
 }
 
 const navItems: { view: View; label: string; icon: typeof Home }[] = [
@@ -34,7 +36,7 @@ const toolItems: { view: View; label: string; icon: typeof Home }[] = [
   { view: 'settings', label: 'Asetukset', icon: Settings },
 ];
 
-export default function Sidebar({ view, onViewChange, companyName, yTunnus, lastBackup }: SidebarProps) {
+export default function Sidebar({ view, onViewChange, companyName, yTunnus, lastBackup, userEmail, onLogout }: SidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   function handleNav(newView: View) {
@@ -134,11 +136,20 @@ export default function Sidebar({ view, onViewChange, companyName, yTunnus, last
             <div className="w-7 h-7 bg-gray-300 rounded-full flex items-center justify-center flex-shrink-0">
               <User className="w-4 h-4 text-gray-600" />
             </div>
-            <div className="min-w-0">
-              <p className="font-medium text-xs text-gray-900">Pääkäyttäjä</p>
-              <p className="text-xs text-gray-500">Admin</p>
+            <div className="min-w-0 flex-1">
+              <p className="font-medium text-xs text-gray-900 truncate">{userEmail || 'Käyttäjä'}</p>
+              <p className="text-xs text-gray-500">Kirjautunut</p>
             </div>
           </div>
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-md transition-colors"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              Kirjaudu ulos
+            </button>
+          )}
         </div>
       </aside>
 

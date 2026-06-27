@@ -4,7 +4,7 @@ import { BrowserRouter } from 'react-router'
 import './index.css'
 import App from './App.tsx'
 import '@/firebase/config'
-import { AuthProvider } from '@/contexts/AuthContext'
+import { AuthProvider } from '@/context/AuthContext'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import Dashboard from '@/components/Dashboard';
@@ -19,14 +19,16 @@ import OnboardingTour from '@/components/OnboardingTour';
 import SmartHelp from '@/components/SmartHelp';
 import EntryModal from '@/components/EntryModal';
 import { LoginPage } from '@/components/auth/LoginPage';
-import { useAuth } from '@/contexts/AuthContext';
+import { RegisterPage } from '@/components/auth/RegisterPage';
+import { useAuth } from '@/context/AuthContext';
 import { useStore } from '@/hooks/useStore';
 import type { Entry, View } from '@/types';
 import { format, parseISO } from 'date-fns';
 import { fi } from 'date-fns/locale';
 
 function App() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, logout } = useAuth();
+  const [showRegister, setShowRegister] = useState(false);
   const store = useStore();
 
   if (authLoading) {
@@ -41,7 +43,11 @@ function App() {
   }
 
   if (!user) {
-    return <LoginPage />;
+    return showRegister ? (
+      <RegisterPage onSwitchToLogin={() => setShowRegister(false)} />
+    ) : (
+      <LoginPage onSwitchToRegister={() => setShowRegister(true)} />
+    );
   }
 
   const handleNewEntry = useCallback(() => {
@@ -91,6 +97,8 @@ function App() {
         companyName={store.company?.name || ''}
         yTunnus={store.company?.yTunnus || ''}
         lastBackup={store.lastBackup}
+        userEmail={user.email || ''}
+        onLogout={logout}
       />
 
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
