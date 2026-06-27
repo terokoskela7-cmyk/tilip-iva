@@ -12,6 +12,7 @@ dist
 dist-ssr
 *.local
 .firebase/
+.venv-pillow/
 
 # Editor directories and files
 .vscode/*
