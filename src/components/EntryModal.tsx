@@ -279,17 +279,19 @@ export default function EntryModal({ open, onOpenChange, onSave, editingEntry, a
                     <Input type="text" value={line.description} onChange={(e) => updateLine(index, 'description', e.target.value)} className="text-sm" placeholder="Selite" />
                   </div>
                   <div className="col-span-1 flex justify-end">
-                    <Button
+                    <button
                       type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeLine(index)}
+                      onClick={() => { if (lines.length > 2) removeLine(index); }}
                       disabled={lines.length <= 2}
-                      title={lines.length <= 2 ? 'Tosite vaatii vähintään 2 riviä' : 'Poista rivi'}
-                      className="text-red-500 hover:text-red-700 disabled:opacity-30"
+                      className={`w-10 h-10 rounded-md flex items-center justify-center transition-colors ${
+                        lines.length <= 2
+                          ? 'text-gray-300 cursor-not-allowed'
+                          : 'text-red-500 hover:bg-red-50 hover:text-red-700 active:bg-red-100'
+                      }`}
+                      aria-label="Poista rivi"
                     >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                      <Trash2 className="w-5 h-5" />
+                    </button>
                   </div>
                 </div>
               ))}
