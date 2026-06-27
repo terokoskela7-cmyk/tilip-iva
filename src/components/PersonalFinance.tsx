@@ -9,7 +9,10 @@ import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
@@ -231,25 +234,70 @@ function autoCategorize(
   return { category: 'muut', type: amount >= 0 ? 'income' : 'expense', confidence: 'low', skip: false };
 }
 
+function cleanMerchantName(value: string): string {
+  if (!value || value === 'Viesti puuttuu' || value === '-') return '';
+  // Remove leading card/account number and date prefix like "*2832 24.06. "
+  const cleaned = value
+    .replace(/^(?:\*\d+(?:\s+\d+\.\d+\.)?\s+)?(.+)$/, '$1')
+    .replace(/^(?:\d{2}\.\d{2}\.\s+)?(.+)$/, '$1')
+    .trim();
+  return cleaned.length > 2 ? cleaned : '';
+}
+
+interface ColumnMap {
+  dateIndex: number;
+  amountIndex: number;
+  descriptionIndex: number;
+  messageIndex: number;
+  typeIndex: number;
+}
+
+function detectColumns(headers: string[]): ColumnMap {
+  const lower = headers.map((h) => h.toLowerCase());
+  const find = (candidates: string[]) => {
+    for (const candidate of candidates) {
+      const idx = lower.findIndex((h) => h.includes(candidate));
+      if (idx >= 0) return idx;
+    }
+    return -1;
+  };
+  const dateIndex = find(['kirjauspäivä', 'päivämäärä', 'pvm', 'date', 'arvopäivä']);
+  const amountIndex = find(['määrä', 'summa', 'euro', 'amount', 'määrä eur']);
+  const descriptionIndex = find(['saaja/maksaja', 'maksaja', 'saaja', 'tapahtuma', 'kuvaus', 'description', 'nimi', 'kauppa']);
+  const messageIndex = find(['viesti', 'viestit', 'message', 'selite', 'tarkenne', 'viitenumero']);
+  const typeIndex = find(['laji', 'tapahtumalaji', 'tyyppi', 'type']);
+  return {
+    dateIndex: dateIndex >= 0 ? dateIndex : 0,
+    amountIndex: amountIndex >= 0 ? amountIndex : 2,
+    descriptionIndex: descriptionIndex >= 0 ? descriptionIndex : 1,
+    messageIndex: messageIndex >= 0 ? messageIndex : 5,
+    typeIndex: typeIndex >= 0 ? typeIndex : 3,
+  };
+}
+
 function parseCsv(text: string): CsvRow[] {
   const lines = text.trim().split(/\r?\n/);
   if (lines.length < 2) return [];
   const delimiter = text.includes('\t') ? '\t' : ';';
+  const firstLine = lines[0].split(delimiter).map((c) => c.trim().replace(/^"|"$/g, '').toLowerCase());
+  const hasHeader = firstLine.some((cell) =>
+    ['päivämäärä', 'kirjauspäivä', 'määrä', 'summa', 'tapahtuma', 'saaja', 'maksaja', 'viesti', 'kuvaus', 'pvm', 'date', 'amount'].some((kw) =>
+      cell.includes(kw)
+    )
+  );
+  const columns = hasHeader ? detectColumns(firstLine) : { dateIndex: 0, amountIndex: 2, descriptionIndex: 1, messageIndex: 5, typeIndex: 3 };
+  const dataStart = hasHeader ? 1 : 0;
   const rows: CsvRow[] = [];
-  for (let i = 1; i < lines.length; i++) {
+  for (let i = dataStart; i < lines.length; i++) {
     const parts = lines[i].split(delimiter).map((c) => c.trim().replace(/^"|"$/g, ''));
-    if (parts.length < 6) continue;
-    const date = normalizeDate(parts[0]);
-    const amount = parseAmount(parts[2]) ?? parseAmount(parts[parts.length - 1]);
-    const tarkenne = parts[4] || '';
-    const merchantMatch = tarkenne.match(/^(?:\*\d+\s+\d+\.\d+\.\s+)?(.+)$/);
-    const merchantName = merchantMatch ? merchantMatch[1].trim() : tarkenne;
-    const rawDescription = (merchantName && merchantName !== 'Viesti puuttuu' && merchantName !== '-' && merchantName.length > 2)
-      ? merchantName
-      : (parts[1] || '');
-    const description = rawDescription;
-    const txType = parts[3] || '';
-    const message = parts[5] || parts[6] || '';
+    if (parts.length < Math.max(columns.dateIndex, columns.amountIndex, columns.descriptionIndex) + 1) continue;
+    const date = normalizeDate(parts[columns.dateIndex]);
+    const amount = parseAmount(parts[columns.amountIndex]);
+    const rawTapahtuma = cleanMerchantName(parts[columns.descriptionIndex] || '');
+    const rawTarkenne = cleanMerchantName(parts[columns.messageIndex] || '');
+    const description = rawTarkenne || rawTapahtuma || cleanMerchantName(parts[1] || '') || '';
+    const txType = parts[columns.typeIndex] || '';
+    const message = rawTarkenne ? rawTapahtuma : '';
     if (!date || amount === null || !description) continue;
     rows.push({ date, description, amount, txType, message, raw: parts });
   }
@@ -265,24 +313,29 @@ function CategorySelect({ value, onChange }: { value: string; onChange: (value: 
         <span className="truncate">{selected?.name || value}</span>
       </SelectTrigger>
       <SelectContent className="max-h-72">
-        <div className="px-2 py-1 text-xs font-semibold text-gray-400 uppercase">Tulot</div>
-        {incomeCategories.map((cat) => (
-          <SelectItem key={cat.id} value={cat.id}>
-            <span className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color }} />
-              {cat.name}
-            </span>
-          </SelectItem>
-        ))}
-        <div className="px-2 py-1 text-xs font-semibold text-gray-400 uppercase border-t mt-1">Menot</div>
-        {expenseCategories.map((cat) => (
-          <SelectItem key={cat.id} value={cat.id}>
-            <span className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color }} />
-              {cat.name}
-            </span>
-          </SelectItem>
-        ))}
+        <SelectGroup>
+          <SelectLabel className="text-xs font-semibold text-gray-400 uppercase">Tulot</SelectLabel>
+          {incomeCategories.map((cat) => (
+            <SelectItem key={cat.id} value={cat.id}>
+              <span className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color }} />
+                {cat.name}
+              </span>
+            </SelectItem>
+          ))}
+        </SelectGroup>
+        <SelectSeparator />
+        <SelectGroup>
+          <SelectLabel className="text-xs font-semibold text-gray-400 uppercase">Menot</SelectLabel>
+          {expenseCategories.map((cat) => (
+            <SelectItem key={cat.id} value={cat.id}>
+              <span className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color }} />
+                {cat.name}
+              </span>
+            </SelectItem>
+          ))}
+        </SelectGroup>
       </SelectContent>
     </Select>
   );
