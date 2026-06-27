@@ -91,7 +91,8 @@ export function useStore() {
       const isPersonal = activeLedger?.type === 'personal';
 
       const comp = await getCompany();
-      if (!comp && !isPersonal) {
+      const companyRequired = activeLedger?.type === 'company';
+      if (!comp && companyRequired) {
         setHasCompany(false);
         setLoading(false);
         return;
@@ -150,8 +151,7 @@ export function useStore() {
     setActiveLedgerIdState(ledgerId);
     setSelectedAccountId(null);
     setSearchQuery('');
-    await loadData();
-  }, [loadData]);
+  }, []);
 
   useEffect(() => {
     loadData();
@@ -167,9 +167,8 @@ export function useStore() {
     await saveLedger(ledger);
     await seedLedgerAccounts(id, ledger.type);
     await changeActiveLedger(id);
-    await loadData();
     showToast('Tilikirja luotu', 'success');
-  }, [changeActiveLedger, loadData, showToast]);
+  }, [changeActiveLedger, showToast]);
 
   const refreshAccounts = useCallback(async () => {
     const acc = await getAllAccounts();

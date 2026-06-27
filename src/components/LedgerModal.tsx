@@ -74,7 +74,8 @@ export function LedgerModal({ open, onOpenChange, onCreate }: LedgerModalProps) 
       onOpenChange(false);
     } catch (err) {
       console.error('Ledger creation error:', err);
-      setError('Tilikirjan luonti epäonnistui.');
+      const message = err instanceof Error ? err.message : String(err);
+      setError(`Tilikirjan luonti epäonnistui: ${message}`);
     } finally {
       setLoading(false);
     }
