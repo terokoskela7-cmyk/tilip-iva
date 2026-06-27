@@ -29,6 +29,7 @@ const Invoicing = lazy(() => import('@/components/Invoicing'));
 const RecurringEntries = lazy(() => import('@/components/RecurringEntries'));
 const Banking = lazy(() => import('@/components/Banking'));
 const PersonalFinance = lazy(() => import('@/components/PersonalFinance'));
+const FirstInvoiceGuide = lazy(() => import('@/components/FirstInvoiceGuide'));
 
 function PageLoader() {
   return (
@@ -234,6 +235,16 @@ export function MainApp() {
         {store.view === 'recurring' && (
           <Suspense fallback={<PageLoader />}>
             <RecurringEntries accounts={store.accounts} onGenerateEntry={store.addEntry} />
+          </Suspense>
+        )}
+
+        {store.view === 'firstinvoice' && (
+          <Suspense fallback={<PageLoader />}>
+            <FirstInvoiceGuide
+              onCreateEntry={store.addEntry}
+              onNavigate={(view) => store.setView(view as View)}
+              accounts={store.accounts}
+            />
           </Suspense>
         )}
       </main>

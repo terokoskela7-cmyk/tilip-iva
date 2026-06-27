@@ -160,7 +160,7 @@ export interface Budget {
   items: BudgetItem[];
 }
 
-export type View = 'dashboard' | 'journal' | 'accounts' | 'reports' | 'settings' | 'guides' | 'entrepreneur' | 'taxcalc' | 'checklist' | 'cashflow' | 'yel' | 'realestate' | 'invoicing' | 'recurring' | 'banking' | 'personal' | 'budget';
+export type View = 'dashboard' | 'journal' | 'accounts' | 'reports' | 'settings' | 'guides' | 'entrepreneur' | 'taxcalc' | 'checklist' | 'cashflow' | 'yel' | 'realestate' | 'invoicing' | 'recurring' | 'banking' | 'personal' | 'budget' | 'firstinvoice';
 
 export interface CashRegisterEntry {
   id: string;

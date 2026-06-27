@@ -76,8 +76,8 @@ export default function Dashboard({
       <Card>
         <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-gray-500 uppercase tracking-wider flex items-center gap-2"><Receipt className="w-4 h-4" /> Kuluva tilikausi</CardTitle></CardHeader>
         <CardContent>
-          <p className="text-lg font-bold text-gray-900">2024</p>
-          <p className="text-xs text-gray-500">01.01.2024 - 31.12.2024</p>
+          <p className="text-lg font-bold text-gray-900">{new Date().getFullYear()}</p>
+          <p className="text-xs text-gray-500">01.01.{new Date().getFullYear()} - 31.12.{new Date().getFullYear()}</p>
         </CardContent>
       </Card>
 

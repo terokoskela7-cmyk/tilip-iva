@@ -3,7 +3,7 @@ import {
   Home, BookOpen, ListTree, BarChart3, Settings, User, CircleDot,
   GraduationCap, Rocket, Calculator, CalendarCheck, Wallet, Shield,
   Building2, Receipt, Repeat, X, Menu, LogOut, Landmark, PiggyBank,
-  PieChart
+  PieChart, FilePlus
 } from 'lucide-react';
 import type { View, Ledger } from '@/types';
 import { LedgerSelector } from './LedgerSelector';
@@ -35,6 +35,7 @@ const allNavItems: { view: View; label: string; icon: typeof Home; hideFor?: Led
 const allToolItems: { view: View; label: string; icon: typeof Home; hideFor?: Ledger['type'][] }[] = [
   { view: 'guides', label: 'Ohjeet', icon: GraduationCap, hideFor: ['personal'] },
   { view: 'entrepreneur', label: 'Yrittäjän opas', icon: Rocket, hideFor: ['personal'] },
+  { view: 'firstinvoice', label: 'Ensimmäinen lasku', icon: FilePlus, hideFor: ['personal'] },
   { view: 'taxcalc', label: 'Vero-laskuri', icon: Calculator, hideFor: ['personal'] },
   { view: 'checklist', label: 'Muistutuslista', icon: CalendarCheck, hideFor: ['personal'] },
   { view: 'cashflow', label: 'Kassavirta', icon: Wallet, hideFor: ['personal'] },
@@ -120,7 +121,7 @@ export default function Sidebar({ view, onViewChange, companyName, yTunnus, last
         <div className="hidden lg:block p-4 border-b border-gray-200">
           <div className="flex items-center gap-2 mb-3">
             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">FL</span>
+              <span className="text-white font-bold text-sm">T</span>
             </div>
             <h1 className="font-bold text-lg text-gray-900">Tilipäivä</h1>
           </div>

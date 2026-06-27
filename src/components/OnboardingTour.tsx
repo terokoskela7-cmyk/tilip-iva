@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { X, ChevronRight, ChevronLeft, BookOpen, MousePointer, BarChart3, Settings, Sparkles } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, BookOpen, MousePointer, BarChart3, Settings, Sparkles, Receipt, HelpCircle } from 'lucide-react';
 import type { View } from '@/types';
 
 interface TourStep {
@@ -14,32 +14,44 @@ interface TourStep {
 const tourSteps: TourStep[] = [
   {
     title: 'Tervetuloa Tilipäivään!',
-    content: 'Tämä on kirjanpito-ohjelmasi. Opastamme sinut läpi tärkeimmät toiminnot. Voit ohittaa opastuksen milloin tahansa.',
+    content: 'Tämä on sinun kirjanpito-ohjelmasi. Käymme läpi muutaman nopean vinkin, jotta pääset alkuun ilman stressiä. Voit ohittaa opastuksen milloin tahansa.',
     icon: Sparkles,
   },
   {
     title: 'Työpöytä',
-    content: 'Täällä näet kaiken yhdellä silmäyksellä: viimeisimmät tositteet vasemmalla, pääkirjan keskellä, ja tilikartta sekä haku oikealla. Klikkaa mitä tahansa tiliä suodattaaksesi tositteet.',
+    content: 'Täällä näet kaiken yhdellä silmäyksellä: viimeisimmät tositteet, tilikartan ja tilinpäätöstiedot. Klikkaa mitä tahansa tiliä suodattaaksesi tositteet helposti.',
     icon: MousePointer,
     action: { label: 'Katso työpöytä', view: 'dashboard' },
   },
   {
     title: 'Tositteen kirjaaminen',
-    content: 'Kun haluat kirjata tapahtuman (esim. tietokoneen oston), klikkaa "Uusi tosite". Syötä päivämäärä, valitse tili, ja syötä summa joko Debet- tai Kredit-puolelle. Muista: Debet ja Kredit summat täsmäättävä!',
+    content: 'Kun ostat tai myyt jotain, klikkaa "Uusi tosite". Syötä päivämäärä, valitse tili ja summa. Älä huoli — ohjelma muistuttaa, jos Debet- ja Kredit-summat eivät täsmää.',
     icon: BookOpen,
     action: { label: 'Kokeile kirjausta', view: 'journal' },
   },
   {
+    title: 'Ensimmäinen myyntilasku?',
+    content: 'Myyntilaskun tekeminen voi tuntua hankalalta. Ohjaamme sinut vaihe vaiheelta: asiakkaan tiedoista valmiiseen kirjanpitomerkintään. Klikkaa alla olevaa nappia kokeillaksesi.',
+    icon: Receipt,
+    action: { label: 'Tee ensimmäinen lasku', view: 'firstinvoice' },
+  },
+  {
     title: 'Raportit',
-    content: 'Tuloslaskelma näyttää ovatko tuotot suuremmat kuin kulut. Tase näyttää yrityksen varallisuuden. ALV-välilehti auttaa arvonlisäveron seurannassa. Graafit visualisoivat kehityksen.',
+    content: 'Tuloslaskelmasta näet, tuottaako yrityksesi voittoa. Taseesta näet varallisuuden. ALV-välilehti auttaa verojen seurannassa. Graafit tekevät luvuista helposti ymmärrettäviä.',
     icon: BarChart3,
     action: { label: 'Tutki raportteja', view: 'reports' },
   },
   {
-    title: 'Ohjeet ja asetukset',
-    content: 'Jos et ole varma mihin tiliin jokin kuuluu, katso "Ohjeet"-välilehti. Siellä on opastus yleisimpiin tilanteisiin, kuten tietokoneen ostoon tai myyntilaskun lähettämiseen. Asetuksista voit muokata yrityksen tietoja.',
-    icon: Settings,
+    title: 'Apua jokaiseen tilanteeseen',
+    content: 'Epävarma, mihin tiliin jokin kuuluu? Ohjeet-välilehdeltä löydät selkeitä esimerkkejä yleisimmistä tilanteista, kuten tietokoneen ostosta tai vuokran maksusta.',
+    icon: HelpCircle,
     action: { label: 'Katso ohjeita', view: 'guides' },
+  },
+  {
+    title: 'Asetukset',
+    content: 'Tarkista, että yrityksesi tiedot ovat ajan tasalla. Voit päivittää osoitteen, Y-tunnuksen ja tilikauden asetukset milloin tahansa.',
+    icon: Settings,
+    action: { label: 'Avaa asetukset', view: 'settings' },
   },
 ];
 
@@ -93,6 +105,7 @@ export default function OnboardingTour({ onNavigate }: OnboardingTourProps) {
           <button
             onClick={handleClose}
             className="absolute top-3 right-3 text-gray-500 hover:text-gray-600 transition-colors"
+            aria-label="Sulje opastus"
           >
             <X className="w-5 h-5" />
           </button>
