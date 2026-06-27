@@ -164,6 +164,9 @@ export function useStore() {
       id,
       createdAt: new Date().toISOString(),
     };
+    // Firestore does not accept undefined values
+    if (!ledger.yTunnus) delete (ledger as Partial<Ledger>).yTunnus;
+    if (!ledger.description) delete (ledger as Partial<Ledger>).description;
     await saveLedger(ledger);
     await seedLedgerAccounts(id, ledger.type);
     await changeActiveLedger(id);
