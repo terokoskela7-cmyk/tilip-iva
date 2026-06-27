@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { Plus, Trash2, TrendingUp, Wallet, Landmark, Coins, Upload, Save, X, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,17 +22,33 @@ import {
   Tooltip,
   Legend,
 } from 'recharts';
-import type { PersonalEntry, BankAccount, CashRegisterEntry, BankTransaction } from '@/types';
+import type { PersonalEntry, BankAccount } from '@/types';
 import { format, parseISO, subMonths, startOfMonth } from 'date-fns';
 import { fi } from 'date-fns/locale';
 
-interface PersonalFinanceProps {
-  entries: PersonalEntry[];
-  bankAccounts: BankAccount[];
-  bankTransactions: BankTransaction[];
-  cashEntries: CashRegisterEntry[];
-  onAddEntry: (entry: PersonalEntry) => void;
-  onDeleteEntry: (id: string) => void;
+const LS_ENTRIES = 'tilipaiva_personal_entries';
+const LS_ACCOUNTS = 'tilipaiva_personal_accounts';
+const LS_DEMO_CLEARED = 'tilipaiva_demo_cleared';
+
+function loadFromStorage<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw) return JSON.parse(raw) as T;
+  } catch { /* ignore */ }
+  return fallback;
+}
+
+function saveToStorage<T>(key: string, value: T) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch { /* ignore */ }
+}
+
+interface DemoAccount {
+  id: string;
+  name: string;
+  balance: number;
+  type: 'checking' | 'savings' | 'cash';
 }
 
 interface CsvRow {
@@ -48,6 +64,40 @@ interface ParsedRow extends CsvRow {
   category: string;
   confidence: 'high' | 'medium' | 'low';
   selected: boolean;
+}
+
+const DEMO_ACCOUNTS: DemoAccount[] = [
+  { id: '1', name: 'Pankkitili', balance: 2500, type: 'checking' },
+  { id: '2', name: 'Säästötili', balance: 5000, type: 'savings' },
+  { id: 'cash', name: 'Käteiskassa', balance: 150, type: 'cash' },
+];
+
+const DEMO_ENTRIES: PersonalEntry[] = [
+  { id: 'demo-1', date: '', description: 'Palkka', amount: 3200, category: 'palkka', createdAt: '' },
+  { id: 'demo-2', date: '', description: 'Sivutulo verkkokaupasta', amount: 250, category: 'sivutulo', createdAt: '' },
+  { id: 'demo-3', date: '', description: 'Ruokaostokset Prisma', amount: -85.5, category: 'ruoka', createdAt: '' },
+  { id: 'demo-4', date: '', description: 'Vuokra', amount: -950, category: 'asuminen', createdAt: '' },
+  { id: 'demo-5', date: '', description: 'Bussilippu', amount: -55, category: 'liikenne', createdAt: '' },
+  { id: 'demo-6', date: '', description: 'Elokuvat', amount: -28, category: 'viihde', createdAt: '' },
+  { id: 'demo-7', date: '', description: 'Apteekki', amount: -32.4, category: 'terveys', createdAt: '' },
+  { id: 'demo-8', date: '', description: 'Uudet kengät', amount: -89.9, category: 'vaatteet', createdAt: '' },
+  { id: 'demo-9', date: '', description: 'Verkkokurssi', amount: -49, category: 'koulutus', createdAt: '' },
+  { id: 'demo-10', date: '', description: 'Kahvit ja lahjat', amount: -24.6, category: 'muut', createdAt: '' },
+  { id: 'demo-11', date: '', description: 'Sähkölasku', amount: -62, category: 'asuminen', createdAt: '' },
+  { id: 'demo-12', date: '', description: 'Polttoaine', amount: -74, category: 'liikenne', createdAt: '' },
+  { id: 'demo-13', date: '', description: 'Spotify', amount: -12.99, category: 'viihde', createdAt: '' },
+  { id: 'demo-14', date: '', description: 'Kirja', amount: -24.9, category: 'koulutus', createdAt: '' },
+  { id: 'demo-15', date: '', description: 'Lounas', amount: -13.5, category: 'ruoka', createdAt: '' },
+];
+
+function createDemoEntries(month: string): PersonalEntry[] {
+  const now = new Date().toISOString();
+  return DEMO_ENTRIES.map((entry, index) => ({
+    ...entry,
+    id: `demo-${index + 1}`,
+    date: `${month}-${String(index + 1).padStart(2, '0')}`,
+    createdAt: now,
+  }));
 }
 
 const expenseCategories = [
@@ -105,31 +155,25 @@ function parseAmount(value: string): number | null {
 function normalizeDate(value: string): string | null {
   if (!value) return null;
   const v = value.trim();
-  // YYYY-MM-DD
   if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
-  // DD.MM.YYYY
   const dmy = v.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
   if (dmy) return `${dmy[3]}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}`;
-  // D.M.YYYY
   const dmy2 = v.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2})$/);
   if (dmy2) {
     const year = parseInt(dmy2[3], 10);
     const fullYear = year >= 50 ? 1900 + year : 2000 + year;
     return `${fullYear}-${dmy2[2].padStart(2, '0')}-${dmy2[1].padStart(2, '0')}`;
   }
-  // Try Date.parse
   const d = new Date(v);
   if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
   return null;
 }
 
 function detectAmountColumn(headers: string[], row: string[]): number {
-  // Prefer columns named amount, summa, määrä, sum, etc.
   const amountIdx = headers.findIndex((h) =>
     ['amount', 'summa', 'määrä', 'sum', 'euro', 'eur'].some((k) => h.toLowerCase().includes(k))
   );
   if (amountIdx >= 0) return amountIdx;
-  // Fallback: find column that looks like a number
   return row.findIndex((cell) => parseAmount(cell) !== null);
 }
 
@@ -156,21 +200,18 @@ function parseCsv(text: string): CsvRow[] {
 
 function autoCategorize(description: string, amount: number): { type: 'income' | 'expense'; category: string; confidence: 'high' | 'medium' | 'low' } {
   const desc = description.toLowerCase();
-  // Income first — high confidence
   for (const [cat, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
     if (!incomeCategories.some((c) => c.id === cat)) continue;
     if (keywords.some((k) => desc.includes(k))) {
       return { type: 'income', category: cat, confidence: 'high' };
     }
   }
-  // Expense categories
   for (const [cat, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
     if (!expenseCategories.some((c) => c.id === cat)) continue;
     if (keywords.some((k) => desc.includes(k))) {
       return { type: 'expense', category: cat, confidence: 'high' };
     }
   }
-  // Partial matches for expenses
   for (const [cat, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
     if (!expenseCategories.some((c) => c.id === cat)) continue;
     for (const kw of keywords) {
@@ -179,58 +220,52 @@ function autoCategorize(description: string, amount: number): { type: 'income' |
       }
     }
   }
-  // Fallback by amount sign
   return { type: amount >= 0 ? 'income' : 'expense', category: 'muut', confidence: 'low' };
 }
 
-function createDemoData(month: string): PersonalEntry[] {
-  const now = new Date().toISOString();
-  return [
-    { id: generateId(), date: `${month}-01`, description: 'Palkka', amount: 3200, category: 'palkka', createdAt: now },
-    { id: generateId(), date: `${month}-02`, description: 'Sivutulo verkkokaupasta', amount: 250, category: 'sivutulo', createdAt: now },
-    { id: generateId(), date: `${month}-03`, description: 'Ruokaostokset Prisma', amount: -85.5, category: 'ruoka', createdAt: now },
-    { id: generateId(), date: `${month}-04`, description: 'Vuokra', amount: -950, category: 'asuminen', createdAt: now },
-    { id: generateId(), date: `${month}-05`, description: 'Bussilippu', amount: -55, category: 'liikenne', createdAt: now },
-    { id: generateId(), date: `${month}-06`, description: 'Elokuvat', amount: -28, category: 'viihde', createdAt: now },
-    { id: generateId(), date: `${month}-07`, description: 'Apteekki', amount: -32.4, category: 'terveys', createdAt: now },
-    { id: generateId(), date: `${month}-08`, description: 'Uudet kengät', amount: -89.9, category: 'vaatteet', createdAt: now },
-    { id: generateId(), date: `${month}-09`, description: 'Verkkokurssi', amount: -49, category: 'koulutus', createdAt: now },
-    { id: generateId(), date: `${month}-10`, description: 'Kahvit ja lahjat', amount: -24.6, category: 'muut', createdAt: now },
-    { id: generateId(), date: `${month}-11`, description: 'Sähkölasku', amount: -62, category: 'asuminen', createdAt: now },
-    { id: generateId(), date: `${month}-12`, description: 'Polttoaine', amount: -74, category: 'liikenne', createdAt: now },
-    { id: generateId(), date: `${month}-13`, description: 'Spotify', amount: -12.99, category: 'viihde', createdAt: now },
-    { id: generateId(), date: `${month}-14`, description: 'Kirja', amount: -24.9, category: 'koulutus', createdAt: now },
-    { id: generateId(), date: `${month}-15`, description: 'Lounas', amount: -13.5, category: 'ruoka', createdAt: now },
-  ];
+interface PersonalFinanceProps {
+  entries: PersonalEntry[];
+  bankAccounts: BankAccount[];
+  onAddEntry: (entry: PersonalEntry) => void;
+  onDeleteEntry: (id: string) => void;
 }
 
 export default function PersonalFinance({
-  entries,
+  entries: _entries,
   bankAccounts,
-  bankTransactions,
-  cashEntries,
   onAddEntry,
   onDeleteEntry,
 }: PersonalFinanceProps) {
+  const demoCleared = localStorage.getItem(LS_DEMO_CLEARED) === 'true';
+  const currentMonth = monthKey(new Date());
+  const initialEntries = demoCleared ? [] : createDemoEntries(currentMonth);
+  const [localEntries, setLocalEntries] = useState<PersonalEntry[]>(() =>
+    loadFromStorage<PersonalEntry[]>(LS_ENTRIES, initialEntries)
+  );
+  const [localAccounts, setLocalAccounts] = useState<DemoAccount[]>(() =>
+    loadFromStorage<DemoAccount[]>(LS_ACCOUNTS, DEMO_ACCOUNTS)
+  );
+  const [demoMode, setDemoMode] = useState(false);
+
   const [type, setType] = useState<'income' | 'expense'>('expense');
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('');
   const [accountId, setAccountId] = useState('cash');
-  const [selectedMonth, setSelectedMonth] = useState(monthKey(new Date()));
-  const [demoMode, setDemoMode] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
   const [previewRows, setPreviewRows] = useState<ParsedRow[] | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const selectedCategories = type === 'income' ? incomeCategories : expenseCategories;
+  useEffect(() => { saveToStorage(LS_ENTRIES, localEntries); }, [localEntries]);
+  useEffect(() => { saveToStorage(LS_ACCOUNTS, localAccounts); }, [localAccounts]);
 
-  const demoEntries = useMemo(() => (demoMode ? createDemoData(selectedMonth) : []), [demoMode, selectedMonth]);
+  const demoEntries = useMemo(() => (demoMode ? createDemoEntries(selectedMonth) : []), [demoMode, selectedMonth]);
 
   const displayEntries = useMemo(() => {
-    return [...entries, ...demoEntries];
-  }, [entries, demoEntries]);
+    return [...localEntries, ...demoEntries];
+  }, [localEntries, demoEntries]);
 
   const filteredEntries = useMemo(() => {
     return displayEntries.filter((e) => e.date.startsWith(selectedMonth));
@@ -244,21 +279,9 @@ export default function PersonalFinance({
     return { income, expense, savings, savingsRate };
   }, [filteredEntries]);
 
-  const cashBalance = useMemo(() => {
-    return cashEntries.reduce((sum, e) => (e.type === 'in' ? sum + e.amount : sum - e.amount), 0);
-  }, [cashEntries]);
-
-  const accountBalances = useMemo(() => {
-    return bankAccounts.map((acc) => {
-      const txs = bankTransactions.filter((t) => t.accountId === acc.id);
-      const change = txs.reduce((sum, t) => sum + t.amount, 0);
-      return { ...acc, balance: (acc.initialBalance || 0) + change };
-    });
-  }, [bankAccounts, bankTransactions]);
-
   const totalWealth = useMemo(() => {
-    return accountBalances.reduce((sum, a) => sum + a.balance, 0) + cashBalance;
-  }, [accountBalances, cashBalance]);
+    return localAccounts.reduce((sum, a) => sum + a.balance, 0);
+  }, [localAccounts]);
 
   const chartData = useMemo(() => {
     const now = new Date();
@@ -273,7 +296,7 @@ export default function PersonalFinance({
       months.push({ month: label, income, expense });
     }
     return months;
-  }, [entries]);
+  }, [displayEntries]);
 
   const categoryData = (categories: typeof expenseCategories, isIncome: boolean) => {
     const data = categories.map((cat) => {
@@ -296,12 +319,14 @@ export default function PersonalFinance({
   const expenseData = categoryData(expenseCategories, false);
   const incomeData = categoryData(incomeCategories, true);
 
+  const selectedCategories = type === 'income' ? incomeCategories : expenseCategories;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const numAmount = parseFloat(amount.replace(',', '.'));
     if (!description.trim() || isNaN(numAmount) || !category) return;
     const signedAmount = type === 'income' ? Math.abs(numAmount) : -Math.abs(numAmount);
-    onAddEntry({
+    const entry: PersonalEntry = {
       id: generateId(),
       date,
       description: description.trim(),
@@ -309,10 +334,17 @@ export default function PersonalFinance({
       category,
       accountId: accountId === 'cash' ? undefined : accountId,
       createdAt: new Date().toISOString(),
-    });
+    };
+    setLocalEntries((prev) => [entry, ...prev]);
+    onAddEntry(entry);
     setDescription('');
     setAmount('');
     setCategory('');
+  };
+
+  const handleDelete = (id: string) => {
+    setLocalEntries((prev) => prev.filter((e) => e.id !== id));
+    onDeleteEntry(id);
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -366,16 +398,19 @@ export default function PersonalFinance({
   const savePreview = async () => {
     if (!previewRows) return;
     const selected = previewRows.filter((r) => r.selected);
-    for (const row of selected) {
-      await onAddEntry({
-        id: generateId(),
-        date: row.date,
-        description: row.description,
-        amount: row.type === 'income' ? Math.abs(row.amount) : -Math.abs(row.amount),
-        category: row.category,
-        accountId: accountId === 'cash' ? undefined : accountId,
-        createdAt: new Date().toISOString(),
-      });
+    const now = new Date().toISOString();
+    const newEntries: PersonalEntry[] = selected.map((row) => ({
+      id: generateId(),
+      date: row.date,
+      description: row.description,
+      amount: row.type === 'income' ? Math.abs(row.amount) : -Math.abs(row.amount),
+      category: row.category,
+      accountId: accountId === 'cash' ? undefined : accountId,
+      createdAt: now,
+    }));
+    setLocalEntries((prev) => [...newEntries, ...prev]);
+    for (const entry of newEntries) {
+      await onAddEntry(entry);
     }
     setPreviewRows(null);
     setSuccess(`Tallennettu ${selected.length} tapahtumaa`);
@@ -384,6 +419,27 @@ export default function PersonalFinance({
 
   const toggleDemo = () => {
     setDemoMode((prev) => !prev);
+  };
+
+  const clearAllData = () => {
+    if (!window.confirm('Tyhjennetäänkö kaikki Oma talous -tiedot?')) return;
+    localStorage.setItem(LS_DEMO_CLEARED, 'true');
+    setLocalEntries([]);
+    setLocalAccounts(DEMO_ACCOUNTS.map((a) => ({ ...a, balance: 0 })));
+    setDemoMode(false);
+    setSuccess('Kaikki tiedot tyhjennetty');
+    setTimeout(() => setSuccess(null), 3000);
+  };
+
+  const restoreDemo = () => {
+    if (!window.confirm('Palautetaanko demo-data? Omat lisäykset säilyvät.')) return;
+    localStorage.removeItem(LS_DEMO_CLEARED);
+    const demo = createDemoEntries(selectedMonth);
+    setLocalEntries((prev) => [...demo, ...prev]);
+    setLocalAccounts(DEMO_ACCOUNTS);
+    setDemoMode(true);
+    setSuccess('Demo-data palautettu');
+    setTimeout(() => setSuccess(null), 3000);
   };
 
   const previewTotals = useMemo(() => {
@@ -404,6 +460,8 @@ export default function PersonalFinance({
     return list;
   }, []);
 
+  const hasData = localEntries.length > 0;
+
   return (
     <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-6">
       {success && (
@@ -414,7 +472,7 @@ export default function PersonalFinance({
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <h2 className="text-2xl font-bold text-gray-900">Oma talous</h2>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Select value={selectedMonth} onValueChange={setSelectedMonth}>
             <SelectTrigger className="w-[180px]">
               <SelectValue />
@@ -433,6 +491,15 @@ export default function PersonalFinance({
             {demoMode ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
             {demoMode ? 'Demo pois' : 'Demo'}
           </Button>
+          {hasData ? (
+            <Button variant="destructive" size="sm" onClick={clearAllData}>
+              <Trash2 className="w-4 h-4 mr-2" /> Tyhjennä
+            </Button>
+          ) : (
+            <Button variant="default" size="sm" onClick={restoreDemo}>
+              <Eye className="w-4 h-4 mr-2" /> Demo takaisin
+            </Button>
+          )}
         </div>
       </div>
 
@@ -518,20 +585,16 @@ export default function PersonalFinance({
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {accountBalances.map((acc) => (
+        {localAccounts.map((acc) => (
           <Card key={acc.id}>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500 flex items-center gap-2"><Landmark className="w-4 h-4" /> {acc.name}</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-500 flex items-center gap-2">
+                {acc.type === 'cash' ? <Coins className="w-4 h-4" /> : <Landmark className="w-4 h-4" />} {acc.name}
+              </CardTitle>
             </CardHeader>
             <CardContent><p className="text-xl font-bold text-gray-900">{acc.balance.toFixed(2)} €</p></CardContent>
           </Card>
         ))}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500 flex items-center gap-2"><Coins className="w-4 h-4" /> Käteiskassa</CardTitle>
-          </CardHeader>
-          <CardContent><p className="text-xl font-bold text-gray-900">{cashBalance.toFixed(2)} €</p></CardContent>
-        </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-500 flex items-center gap-2"><Wallet className="w-4 h-4" /> Varallisuus yht.</CardTitle>
@@ -615,6 +678,7 @@ export default function PersonalFinance({
                   <SelectContent>
                     <SelectItem value="cash">Käteiskassa</SelectItem>
                     {bankAccounts.map((acc) => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
+                    {localAccounts.filter((a) => a.type !== 'cash').map((acc) => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -630,15 +694,18 @@ export default function PersonalFinance({
               {filteredEntries.length === 0 && <p className="text-gray-500 text-sm">Ei tapahtumia valitulta kuukaudelta.</p>}
               {filteredEntries.slice(0, 50).map((entry) => {
                 const cat = allCategories.find((c) => c.id === entry.category);
+                const isDemo = entry.id.startsWith('demo-');
                 return (
-                  <div key={entry.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
+                  <div key={entry.id} className={`flex items-center justify-between p-3 rounded-md ${isDemo ? 'bg-blue-50 border border-blue-100' : 'bg-gray-50'}`}>
                     <div>
-                      <p className="font-medium text-gray-900">{entry.description}</p>
+                      <p className="font-medium text-gray-900">{entry.description} {isDemo && <span className="text-xs text-blue-600 font-normal">(demo)</span>}</p>
                       <p className="text-xs text-gray-500">{format(parseISO(entry.date), 'dd.MM.yyyy', { locale: fi })} • {cat?.name || entry.category}</p>
                     </div>
                     <div className="flex items-center gap-3">
                       <span className={`font-bold ${entry.amount > 0 ? 'text-green-600' : 'text-red-600'}`}>{entry.amount > 0 ? '+' : ''}{entry.amount.toFixed(2)} €</span>
-                      <Button variant="ghost" size="sm" onClick={() => onDeleteEntry(entry.id)} aria-label="Poista tapahtuma"><Trash2 className="w-4 h-4 text-red-500" /></Button>
+                      {!isDemo && (
+                        <Button variant="ghost" size="sm" onClick={() => handleDelete(entry.id)} aria-label="Poista tapahtuma"><Trash2 className="w-4 h-4 text-red-500" /></Button>
+                      )}
                     </div>
                   </div>
                 );

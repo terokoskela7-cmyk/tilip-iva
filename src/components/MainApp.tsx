@@ -129,8 +129,6 @@ export function MainApp() {
             <PersonalFinance
               entries={store.personalEntries}
               bankAccounts={store.bankAccounts}
-              bankTransactions={store.bankTransactions}
-              cashEntries={store.cashEntries}
               onAddEntry={store.addPersonalEntry}
               onDeleteEntry={store.removePersonalEntry}
             />
