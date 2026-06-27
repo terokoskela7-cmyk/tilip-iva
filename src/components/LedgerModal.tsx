@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Building2, Home, User, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import {
   Dialog,
@@ -37,7 +38,9 @@ export function LedgerModal({ open, onOpenChange, onCreate }: LedgerModalProps) 
   const [name, setName] = useState('');
   const [type, setType] = useState<Ledger['type']>('company');
   const [yTunnus, setYTunnus] = useState('');
+  const [address, setAddress] = useState('');
   const [description, setDescription] = useState('');
+  const [vatRegistered, setVatRegistered] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,7 +48,9 @@ export function LedgerModal({ open, onOpenChange, onCreate }: LedgerModalProps) 
     setName('');
     setType('company');
     setYTunnus('');
+    setAddress('');
     setDescription('');
+    setVatRegistered(true);
     setError(null);
   };
 
@@ -67,7 +72,9 @@ export function LedgerModal({ open, onOpenChange, onCreate }: LedgerModalProps) 
         name: name.trim(),
         type,
         yTunnus: type === 'company' || type === 'housing-company' ? yTunnus.trim() || undefined : undefined,
+        address: address.trim() || undefined,
         description: description.trim() || undefined,
+        vatRegistered,
         isDefault: false,
       });
       reset();
@@ -135,6 +142,27 @@ export function LedgerModal({ open, onOpenChange, onCreate }: LedgerModalProps) 
               />
             </div>
           )}
+          <div className="space-y-2">
+            <Label htmlFor="ledger-address">Osoite</Label>
+            <Input
+              id="ledger-address"
+              placeholder="Katuosoite, postinumero ja kaupunki"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              disabled={loading}
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="ledger-vat"
+              checked={vatRegistered}
+              onCheckedChange={(v) => setVatRegistered(Boolean(v))}
+              disabled={loading}
+            />
+            <Label htmlFor="ledger-vat" className="text-sm font-normal cursor-pointer">
+              ALV-velvollinen
+            </Label>
+          </div>
           <div className="space-y-2">
             <Label htmlFor="ledger-description">Kuvaus</Label>
             <Input

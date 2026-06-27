@@ -132,7 +132,9 @@ export interface Ledger {
   name: string;
   type: LedgerType;
   yTunnus?: string;
+  address?: string;
   description?: string;
+  vatRegistered: boolean;
   isDefault: boolean;
   createdAt: string;
 }

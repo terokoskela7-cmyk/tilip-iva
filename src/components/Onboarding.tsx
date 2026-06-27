@@ -59,6 +59,8 @@ export function Onboarding({ onComplete }: OnboardingProps) {
         name: company.name,
         type: 'company',
         yTunnus: company.yTunnus || undefined,
+        address: `${company.address || ''}, ${company.postalCode || ''} ${company.city || ''}`.trim().replace(/^,\s*/, ''),
+        vatRegistered: company.vatRegistered,
         isDefault: true,
         createdAt: new Date().toISOString(),
       };

@@ -55,6 +55,21 @@ export default function Sidebar({ view, onViewChange, companyName, yTunnus, last
   );
   const ledgerType = activeLedger?.type ?? 'company';
 
+  const typeLabel = (() => {
+    switch (ledgerType) {
+      case 'company': return 'Yritys';
+      case 'private': return 'Yksityinen';
+      case 'housing-company': return 'Asunto-osakeyhtiö';
+      case 'personal': return 'Henkilökohtainen';
+      default: return '';
+    }
+  })();
+
+  const vatText = (() => {
+    if (ledgerType === 'personal') return 'Ei ALV-velvollisuutta';
+    return activeLedger?.vatRegistered ? 'ALV-velvollinen ✓' : 'Ei ALV-velvollisuutta';
+  })();
+
   const navItems = useMemo(
     () => allNavItems.filter((item) => !item.hideFor?.includes(ledgerType)),
     [ledgerType]
@@ -126,8 +141,10 @@ export default function Sidebar({ view, onViewChange, companyName, yTunnus, last
             <h1 className="font-bold text-lg text-gray-900">Tilipäivä</h1>
           </div>
           <div className="text-sm">
-            <p className="font-medium text-gray-900 truncate">{companyName || 'Yritys'}</p>
-            <p className="text-gray-500 text-xs">{yTunnus || ''}</p>
+            <p className="font-medium text-gray-900 truncate">{activeLedger?.name || companyName || 'Yritys'}</p>
+            <p className="text-gray-500 text-xs">{activeLedger?.yTunnus || yTunnus || ''}</p>
+            <p className="text-xs text-gray-500">{typeLabel}</p>
+            <p className="text-xs text-emerald-600 font-medium mt-0.5">{vatText}</p>
           </div>
           <LedgerSelector
             ledgers={ledgers}
@@ -140,8 +157,10 @@ export default function Sidebar({ view, onViewChange, companyName, yTunnus, last
         {/* Mobile close button inside sidebar */}
         <div className="lg:hidden p-4 border-b border-gray-200 flex items-center justify-between">
           <div className="text-sm">
-            <p className="font-medium text-gray-900 truncate">{companyName || 'Yritys'}</p>
-            <p className="text-gray-500 text-xs">{yTunnus || ''}</p>
+            <p className="font-medium text-gray-900 truncate">{activeLedger?.name || companyName || 'Yritys'}</p>
+            <p className="text-gray-500 text-xs">{activeLedger?.yTunnus || yTunnus || ''}</p>
+            <p className="text-xs text-gray-500">{typeLabel}</p>
+            <p className="text-xs text-emerald-600 font-medium mt-0.5">{vatText}</p>
           </div>
           <button onClick={() => setMobileOpen(false)} className="p-1.5 rounded-md hover:bg-gray-200" aria-label="Sulje valikko">
             <X className="w-5 h-5" />

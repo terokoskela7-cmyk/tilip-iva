@@ -142,6 +142,7 @@ export async function seedDatabase(): Promise<void> {
     name: defaultCompany.name,
     type: 'company',
     yTunnus: defaultCompany.yTunnus,
+    vatRegistered: true,
     isDefault: true,
     createdAt: new Date().toISOString(),
   };

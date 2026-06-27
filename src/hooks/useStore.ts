@@ -166,6 +166,7 @@ export function useStore() {
     };
     // Firestore does not accept undefined values
     if (!ledger.yTunnus) delete (ledger as Partial<Ledger>).yTunnus;
+    if (!ledger.address) delete (ledger as Partial<Ledger>).address;
     if (!ledger.description) delete (ledger as Partial<Ledger>).description;
     await saveLedger(ledger);
     await seedLedgerAccounts(id, ledger.type);

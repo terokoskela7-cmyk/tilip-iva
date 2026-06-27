@@ -310,6 +310,7 @@ export async function migrateToLedgers(): Promise<void> {
     id: ledgerId,
     name: 'Yritys',
     type: 'company',
+    vatRegistered: true,
     isDefault: true,
     createdAt: new Date().toISOString(),
   };
