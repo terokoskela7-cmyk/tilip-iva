@@ -183,24 +183,23 @@ function autoCategorize(description: string, amount: number): { type: 'income' |
   return { type: amount >= 0 ? 'income' : 'expense', category: 'muut', confidence: 'low' };
 }
 
-function createDemoData(): Omit<PersonalEntry, 'id' | 'createdAt'>[] {
-  const mk = monthKey(new Date());
+function createDemoData(month: string): Omit<PersonalEntry, 'id' | 'createdAt'>[] {
   return [
-    { date: `${mk}-01`, description: 'Palkka', amount: 3200, category: 'palkka' },
-    { date: `${mk}-02`, description: 'Sivutulo verkkokaupasta', amount: 250, category: 'sivutulo' },
-    { date: `${mk}-03`, description: 'Ruokaostokset Prisma', amount: -85.5, category: 'ruoka' },
-    { date: `${mk}-04`, description: 'Vuokra', amount: -950, category: 'asuminen' },
-    { date: `${mk}-05`, description: 'Bussilippu', amount: -55, category: 'liikenne' },
-    { date: `${mk}-06`, description: 'Elokuvat', amount: -28, category: 'viihde' },
-    { date: `${mk}-07`, description: 'Apteekki', amount: -32.4, category: 'terveys' },
-    { date: `${mk}-08`, description: 'Uudet kengät', amount: -89.9, category: 'vaatteet' },
-    { date: `${mk}-09`, description: 'Verkkokurssi', amount: -49, category: 'koulutus' },
-    { date: `${mk}-10`, description: 'Kahvit ja lahjat', amount: -24.6, category: 'muut' },
-    { date: `${mk}-11`, description: 'Sähkölasku', amount: -62, category: 'asuminen' },
-    { date: `${mk}-12`, description: 'Polttoaine', amount: -74, category: 'liikenne' },
-    { date: `${mk}-13`, description: 'Spotify', amount: -12.99, category: 'viihde' },
-    { date: `${mk}-14`, description: 'Kirja', amount: -24.9, category: 'koulutus' },
-    { date: `${mk}-15`, description: 'Lounas', amount: -13.5, category: 'ruoka' },
+    { date: `${month}-01`, description: 'Palkka', amount: 3200, category: 'palkka' },
+    { date: `${month}-02`, description: 'Sivutulo verkkokaupasta', amount: 250, category: 'sivutulo' },
+    { date: `${month}-03`, description: 'Ruokaostokset Prisma', amount: -85.5, category: 'ruoka' },
+    { date: `${month}-04`, description: 'Vuokra', amount: -950, category: 'asuminen' },
+    { date: `${month}-05`, description: 'Bussilippu', amount: -55, category: 'liikenne' },
+    { date: `${month}-06`, description: 'Elokuvat', amount: -28, category: 'viihde' },
+    { date: `${month}-07`, description: 'Apteekki', amount: -32.4, category: 'terveys' },
+    { date: `${month}-08`, description: 'Uudet kengät', amount: -89.9, category: 'vaatteet' },
+    { date: `${month}-09`, description: 'Verkkokurssi', amount: -49, category: 'koulutus' },
+    { date: `${month}-10`, description: 'Kahvit ja lahjat', amount: -24.6, category: 'muut' },
+    { date: `${month}-11`, description: 'Sähkölasku', amount: -62, category: 'asuminen' },
+    { date: `${month}-12`, description: 'Polttoaine', amount: -74, category: 'liikenne' },
+    { date: `${month}-13`, description: 'Spotify', amount: -12.99, category: 'viihde' },
+    { date: `${month}-14`, description: 'Kirja', amount: -24.9, category: 'koulutus' },
+    { date: `${month}-15`, description: 'Lounas', amount: -13.5, category: 'ruoka' },
   ];
 }
 
@@ -376,10 +375,14 @@ export default function PersonalFinance({
   };
 
   const addDemoData = () => {
-    const demo = createDemoData();
+    const demo = createDemoData(selectedMonth);
+    let count = 0;
     for (const entry of demo) {
       onAddEntry({ ...entry, id: generateId(), createdAt: new Date().toISOString() });
+      count++;
     }
+    setSuccess(`Lisätty ${count} demotapahtumaa kuukaudelle ${selectedMonth}`);
+    setTimeout(() => setSuccess(null), 3000);
   };
 
   const previewTotals = useMemo(() => {
@@ -425,11 +428,9 @@ export default function PersonalFinance({
             <Upload className="w-4 h-4 mr-2" /> CSV
           </Button>
           <input ref={fileInputRef} type="file" accept=".csv,.txt" className="hidden" onChange={handleFileUpload} />
-          {entries.length === 0 && (
-            <Button variant="outline" size="sm" onClick={addDemoData}>
-              <Sparkles className="w-4 h-4 mr-2" /> Demo
-            </Button>
-          )}
+          <Button variant="outline" size="sm" onClick={addDemoData}>
+            <Sparkles className="w-4 h-4 mr-2" /> Demo-data
+          </Button>
         </div>
       </div>
 
