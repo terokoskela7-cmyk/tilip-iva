@@ -18,13 +18,31 @@ import RecurringEntries from '@/components/RecurringEntries';
 import OnboardingTour from '@/components/OnboardingTour';
 import SmartHelp from '@/components/SmartHelp';
 import EntryModal from '@/components/EntryModal';
+import { LoginPage } from '@/components/auth/LoginPage';
+import { useAuth } from '@/contexts/AuthContext';
 import { useStore } from '@/hooks/useStore';
 import type { Entry, View } from '@/types';
 import { format, parseISO } from 'date-fns';
 import { fi } from 'date-fns/locale';
 
 function App() {
+  const { user, loading: authLoading } = useAuth();
   const store = useStore();
+
+  if (authLoading) {
+    return (
+      <div className="h-screen w-screen flex items-center justify-center bg-gray-50">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+          <p className="text-sm text-gray-600">Tarkistetaan kirjautumista...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <LoginPage />;
+  }
 
   const handleNewEntry = useCallback(() => {
     store.setEditingEntry(null);
