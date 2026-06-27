@@ -9,10 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
-  SelectLabel,
-  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
@@ -336,37 +333,37 @@ function parseCsv(text: string): CsvRow[] {
 function CategorySelect({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   const selected = allCategories.find((c) => c.id === value);
   return (
-    <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="w-[150px] h-8 flex items-center gap-2">
-        {selected && <span className="w-2 h-2 rounded-full" style={{ backgroundColor: selected.color }} />}
-        <span className="truncate">{selected?.name || value}</span>
-      </SelectTrigger>
-      <SelectContent className="max-h-72">
-        <SelectGroup>
-          <SelectLabel className="text-xs font-semibold text-gray-400 uppercase">Tulot</SelectLabel>
+    <div className="flex items-center gap-2">
+      {selected && (
+        <span
+          className="text-xs px-2 py-1 rounded-full font-medium border whitespace-nowrap"
+          style={{
+            backgroundColor: selected.color + '15',
+            color: selected.color,
+            borderColor: selected.color + '30',
+          }}
+        >
+          {selected.name}
+        </span>
+      )}
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="text-xs h-7 px-2 border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+        style={{ minWidth: '100px' }}
+      >
+        <optgroup label="Tulot">
           {incomeCategories.map((cat) => (
-            <SelectItem key={cat.id} value={cat.id}>
-              <span className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color }} />
-                {cat.name}
-              </span>
-            </SelectItem>
+            <option key={cat.id} value={cat.id}>{cat.name}</option>
           ))}
-        </SelectGroup>
-        <SelectSeparator />
-        <SelectGroup>
-          <SelectLabel className="text-xs font-semibold text-gray-400 uppercase">Menot</SelectLabel>
+        </optgroup>
+        <optgroup label="Menot">
           {expenseCategories.map((cat) => (
-            <SelectItem key={cat.id} value={cat.id}>
-              <span className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color }} />
-                {cat.name}
-              </span>
-            </SelectItem>
+            <option key={cat.id} value={cat.id}>{cat.name}</option>
           ))}
-        </SelectGroup>
-      </SelectContent>
-    </Select>
+        </optgroup>
+      </select>
+    </div>
   );
 }
 
