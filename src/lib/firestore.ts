@@ -60,6 +60,11 @@ export async function saveEntry(entry: Entry): Promise<void> {
   await setDoc(userDoc('entries', entry.id), entry);
 }
 
+export async function getEntryById(id: string): Promise<Entry | null> {
+  const snap = await getDoc(userDoc('entries', id));
+  return snap.exists() ? (snap.data() as Entry) : null;
+}
+
 export async function deleteEntry(id: string): Promise<void> {
   await deleteDoc(userDoc('entries', id));
 }
@@ -127,6 +132,26 @@ export async function saveManyAccounts(accounts: Account[]): Promise<void> {
     batch.set(userDoc('accounts', account.id), account);
   }
   await batch.commit();
+}
+
+// === EXPORT ===
+export async function exportAllData(): Promise<Record<string, unknown[]>> {
+  const [accounts, entries, customers, invoices, recurringEntries, vatPeriods] = await Promise.all([
+    getAllAccounts(),
+    getAllEntries(),
+    getAllCustomers(),
+    getAllInvoices(),
+    getAllRecurringEntries(),
+    getAllVatPeriods(),
+  ]);
+  return {
+    accounts,
+    entries,
+    customers,
+    invoices,
+    recurringEntries,
+    vatPeriods,
+  };
 }
 
 // === RESET ===

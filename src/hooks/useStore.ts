@@ -9,6 +9,7 @@ import {
   getAllRecurringEntries,
   saveEntry,
   saveAccount,
+  getEntryById,
   deleteEntry,
   deleteAccount,
   saveCompany,
@@ -19,6 +20,7 @@ import {
   deleteInvoice,
   deleteRecurringEntry,
 } from '@/lib/firestore';
+import { deleteAttachment } from '@/lib/storage';
 import {
   getAllCashRegisterEntries,
   saveCashRegisterEntry,
@@ -53,7 +55,6 @@ export function useStore() {
       const comp = await getCompany();
       if (!comp) {
         setHasCompany(false);
-        setCompany(null);
         setLoading(false);
         return;
       }
@@ -76,7 +77,7 @@ export function useStore() {
       setRecurringEntries(rec);
       setLastBackup(new Date().toLocaleTimeString('fi-FI'));
     } catch (e) {
-      console.error('Error loading data:', e);
+      console.error('Virhe ladattaessa tietoja:', e);
       showToast('Virhe ladattaessa tietoja', 'error');
     } finally {
       setLoading(false);
@@ -125,6 +126,18 @@ export function useStore() {
   }, [refreshEntries, showToast]);
 
   const removeEntry = useCallback(async (id: string) => {
+    const entry = await getEntryById(id);
+    if (entry) {
+      for (const att of entry.attachments) {
+        if (att.path) {
+          try {
+            await deleteAttachment(att.path);
+          } catch (e) {
+            console.error('Failed to delete attachment:', e);
+          }
+        }
+      }
+    }
     await deleteEntry(id);
     await refreshEntries();
     setLastBackup(new Date().toLocaleTimeString('fi-FI'));

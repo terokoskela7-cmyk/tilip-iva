@@ -23,8 +23,10 @@ export interface Attachment {
   id: string;
   name: string;
   type: string; // MIME type
-  data: string; // base64
   size: number;
+  path?: string; // Storage path (after upload)
+  url?: string; // Download URL (after upload)
+  data?: string; // base64 (local preview before upload)
   uploadedAt: string;
 }
 

@@ -5,7 +5,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Trash2, Plus, Save, Paperclip, X, ImageIcon } from 'lucide-react';
+import { Trash2, Plus, Save, Paperclip, X, ImageIcon, Loader2 } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { uploadAttachment, deleteAttachment } from '@/lib/storage';
 import type { Entry, EntryLine, Account, Attachment } from '@/types';
 
 interface EntryModalProps {
@@ -28,12 +30,14 @@ function getNextEntryNumber(entries: Entry[]): string {
 }
 
 export default function EntryModal({ open, onOpenChange, onSave, editingEntry, accounts, existingEntries }: EntryModalProps) {
+  const { user } = useAuth();
   const [date, setDate] = useState('');
   const [number, setNumber] = useState('');
   const [description, setDescription] = useState('');
   const [lines, setLines] = useState<EntryLine[]>([]);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (editingEntry) {
@@ -109,7 +113,15 @@ export default function EntryModal({ open, onOpenChange, onSave, editingEntry, a
     e.target.value = '';
   }, []);
 
-  function removeAttachment(id: string) {
+  async function removeAttachment(id: string) {
+    const att = attachments.find((a) => a.id === id);
+    if (att?.path) {
+      try {
+        await deleteAttachment(att.path);
+      } catch (e) {
+        console.error('Failed to delete attachment from storage:', e);
+      }
+    }
     setAttachments(attachments.filter((a) => a.id !== id));
   }
 
@@ -129,21 +141,55 @@ export default function EntryModal({ open, onOpenChange, onSave, editingEntry, a
     return errs.length === 0;
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!validate()) return;
-    const entry: Entry = {
-      id: editingEntry?.id || generateId(),
-      date,
-      number,
-      description,
-      lines: lines.filter((l) => l.accountId),
-      attachments,
-      status: editingEntry?.status || 'confirmed',
-      createdAt: editingEntry?.createdAt || new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    onSave(entry);
-    onOpenChange(false);
+    if (!user) {
+      setErrors(['Käyttäjä ei ole kirjautunut']);
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const entryId = editingEntry?.id || generateId();
+
+      // Upload new attachments (those with data but no path)
+      const uploadedAttachments: Attachment[] = [];
+      for (const att of attachments) {
+        if (att.data && !att.path) {
+          const { path, url } = await uploadAttachment(entryId, att.id, att.name, att.data);
+          uploadedAttachments.push({
+            id: att.id,
+            name: att.name,
+            type: att.type,
+            size: att.size,
+            path,
+            url,
+            uploadedAt: att.uploadedAt,
+          });
+        } else {
+          uploadedAttachments.push(att);
+        }
+      }
+
+      const entry: Entry = {
+        id: entryId,
+        date,
+        number,
+        description,
+        lines: lines.filter((l) => l.accountId),
+        attachments: uploadedAttachments,
+        status: editingEntry?.status || 'confirmed',
+        createdAt: editingEntry?.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      onSave(entry);
+      onOpenChange(false);
+    } catch (e) {
+      console.error('Upload error:', e);
+      setErrors(['Liitteiden tallennus epäonnistui. Yritä uudelleen.']);
+    } finally {
+      setUploading(false);
+    }
   }
 
   const totalDebit = lines.reduce((s, l) => s + (Number(l.debit) || 0), 0);
@@ -262,13 +308,21 @@ export default function EntryModal({ open, onOpenChange, onSave, editingEntry, a
                     <div key={att.id} className="relative group border rounded-md p-2 bg-gray-50">
                       {att.type.startsWith('image/') ? (
                         <div>
-                          <img src={att.data} alt={att.name} className="w-full h-20 object-cover rounded" />
+                          <img src={att.url || att.data} alt={att.name} className="w-full h-20 object-cover rounded" />
                           <p className="text-xs text-gray-600 truncate mt-1">{att.name}</p>
                         </div>
                       ) : (
                         <div className="flex items-center gap-2">
                           <Paperclip className="w-4 h-4 text-gray-400" />
-                          <p className="text-xs text-gray-600 truncate">{att.name}</p>
+                          <a
+                            href={att.url || att.data}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-xs text-blue-600 hover:underline truncate"
+                            title={att.name}
+                          >
+                            {att.name}
+                          </a>
                         </div>
                       )}
                       <button
@@ -294,9 +348,18 @@ export default function EntryModal({ open, onOpenChange, onSave, editingEntry, a
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Peruuta</Button>
-          <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700 text-white">
-            <Save className="w-4 h-4 mr-2" />
-            Tallenna
+          <Button onClick={handleSave} disabled={uploading} className="bg-blue-600 hover:bg-blue-700 text-white">
+            {uploading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Tallennetaan...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4 mr-2" />
+                Tallenna
+              </>
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
