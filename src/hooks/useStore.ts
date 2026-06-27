@@ -155,7 +155,7 @@ export function useStore() {
 
   useEffect(() => {
     loadData();
-  }, [loadData]);
+  }, [loadData, activeLedgerId]);
 
   const createLedger = useCallback(async (data: Omit<Ledger, 'id' | 'createdAt'>) => {
     const id = generateId();
