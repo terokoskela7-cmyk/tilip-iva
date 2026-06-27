@@ -5,12 +5,15 @@ import './index.css'
 import App from './App.tsx'
 import '@/firebase/config'
 import { AuthProvider } from '@/context/AuthContext'
+import { ErrorBoundary } from '@/components/error/ErrorBoundary'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
       <AuthProvider>
-        <App />
+        <ErrorBoundary>
+          <App />
+        </ErrorBoundary>
       </AuthProvider>
     </BrowserRouter>
   </StrictMode>,
