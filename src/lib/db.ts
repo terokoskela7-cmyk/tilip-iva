@@ -1,6 +1,8 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import type { Account, Entry, Company, VatPeriod, CashRegisterEntry, RecurringEntry, Customer, Invoice } from '@/types';
 
+type CashEntry = CashRegisterEntry & { ledgerId?: string };
+
 interface FinLedgerDB extends DBSchema {
   accounts: {
     key: string;
@@ -140,14 +142,17 @@ export async function saveVatPeriod(period: VatPeriod): Promise<void> {
 }
 
 // Cash register operations
-export async function getAllCashRegisterEntries(): Promise<CashRegisterEntry[]> {
+export async function getAllCashRegisterEntries(ledgerId?: string): Promise<CashRegisterEntry[]> {
   const db = await getDB();
-  return db.getAllFromIndex('cashRegister', 'by-date');
+  const all = await db.getAllFromIndex('cashRegister', 'by-date');
+  if (!ledgerId) return all;
+  return all.filter((e) => (e as CashEntry).ledgerId === ledgerId);
 }
 
-export async function saveCashRegisterEntry(entry: CashRegisterEntry): Promise<void> {
+export async function saveCashRegisterEntry(entry: CashRegisterEntry, ledgerId?: string): Promise<void> {
   const db = await getDB();
-  await db.put('cashRegister', entry);
+  const toSave: CashEntry = ledgerId ? { ...entry, ledgerId } : entry;
+  await db.put('cashRegister', toSave as CashRegisterEntry);
 }
 
 // Recurring entry operations

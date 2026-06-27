@@ -4,7 +4,8 @@ import {
   GraduationCap, Rocket, Calculator, CalendarCheck, Wallet, Shield,
   Building2, Receipt, Repeat, X, Menu, LogOut, Landmark
 } from 'lucide-react';
-import type { View } from '@/types';
+import type { View, Ledger } from '@/types';
+import { LedgerSelector } from './LedgerSelector';
 
 interface SidebarProps {
   view: View;
@@ -14,6 +15,10 @@ interface SidebarProps {
   lastBackup: string | null;
   userEmail?: string;
   onLogout?: () => void;
+  ledgers: Ledger[];
+  activeLedgerId: string;
+  onSelectLedger: (ledgerId: string) => void;
+  onCreateLedger: () => void;
 }
 
 const navItems: { view: View; label: string; icon: typeof Home }[] = [
@@ -37,7 +42,7 @@ const toolItems: { view: View; label: string; icon: typeof Home }[] = [
   { view: 'settings', label: 'Asetukset', icon: Settings },
 ];
 
-export default function Sidebar({ view, onViewChange, companyName, yTunnus, lastBackup, userEmail, onLogout }: SidebarProps) {
+export default function Sidebar({ view, onViewChange, companyName, yTunnus, lastBackup, userEmail, onLogout, ledgers, activeLedgerId, onSelectLedger, onCreateLedger }: SidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   function handleNav(newView: View) {
@@ -105,6 +110,12 @@ export default function Sidebar({ view, onViewChange, companyName, yTunnus, last
             <p className="font-medium text-gray-900 truncate">{companyName || 'Yritys'}</p>
             <p className="text-gray-500 text-xs">{yTunnus || ''}</p>
           </div>
+          <LedgerSelector
+            ledgers={ledgers}
+            activeLedgerId={activeLedgerId}
+            onSelect={onSelectLedger}
+            onCreateNew={onCreateLedger}
+          />
         </div>
 
         {/* Mobile close button inside sidebar */}
@@ -118,6 +129,14 @@ export default function Sidebar({ view, onViewChange, companyName, yTunnus, last
           </button>
         </div>
 
+        <div className="px-3 py-2 lg:hidden">
+          <LedgerSelector
+            ledgers={ledgers}
+            activeLedgerId={activeLedgerId}
+            onSelect={onSelectLedger}
+            onCreateNew={onCreateLedger}
+          />
+        </div>
         <nav className="flex-1 py-2 px-2 space-y-1 overflow-y-auto">
           <p className="text-xs text-gray-500 font-medium uppercase tracking-wider px-3 py-1">Kirjanpito</p>
           {renderItems(navItems)}

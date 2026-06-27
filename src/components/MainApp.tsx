@@ -6,6 +6,7 @@ import OnboardingTour from '@/components/OnboardingTour';
 import { Onboarding } from '@/components/Onboarding';
 import SmartHelp from '@/components/SmartHelp';
 import EntryModal from '@/components/EntryModal';
+import { LedgerModal } from '@/components/LedgerModal';
 import { useAuth } from '@/context/AuthContext';
 import { useStore } from '@/hooks/useStore';
 import type { Entry, View } from '@/types';
@@ -93,6 +94,10 @@ export function MainApp() {
         lastBackup={store.lastBackup}
         userEmail={user?.email || ''}
         onLogout={logout}
+        ledgers={store.ledgers}
+        activeLedgerId={store.activeLedgerId}
+        onSelectLedger={store.setActiveLedger}
+        onCreateLedger={() => store.setLedgerModalOpen(true)}
       />
 
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
@@ -224,6 +229,12 @@ export function MainApp() {
         currentView={store.view}
         onNavigate={handleNavigate}
         onNewEntry={handleNewEntry}
+      />
+
+      <LedgerModal
+        open={store.ledgerModalOpen}
+        onOpenChange={store.setLedgerModalOpen}
+        onCreate={store.createLedger}
       />
 
       <EntryModal

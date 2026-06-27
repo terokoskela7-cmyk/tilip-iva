@@ -1,63 +1,9 @@
-import { saveAccount, saveEntry, saveCompany, saveCashRegisterEntry, getAllAccounts } from './db';
-import type { Account, Entry, Company, CashRegisterEntry } from '@/types';
-
-const defaultAccounts: Omit<Account, 'id'>[] = [
-  // VASTAAVAA (Assets)
-  { number: '1000', name: 'Kehitysmenot', type: 'asset', vatRate: 0 },
-  { number: '1100', name: 'Aineettomat oikeudet', type: 'asset', vatRate: 0 },
-  { number: '1200', name: 'Maa- ja vesialueet', type: 'asset', vatRate: 0 },
-  { number: '1210', name: 'Rakennukset ja rakennelmat', type: 'asset', vatRate: 0 },
-  { number: '1220', name: 'Koneet ja kalusto', type: 'asset', vatRate: 0 },
-  { number: '1300', name: 'Sijoitukset', type: 'asset', vatRate: 0 },
-  { number: '1700', name: 'Aineet ja tarvikkeet', type: 'asset', vatRate: 0 },
-  { number: '1800', name: 'Valmiit tuotteet', type: 'asset', vatRate: 0 },
-  { number: '1900', name: 'Siirtosaamiset', type: 'asset', vatRate: 0 },
-  { number: '1910', name: 'Myyntisaamiset', type: 'asset', vatRate: 0 },
-  { number: '1920', name: 'Muut saamiset', type: 'asset', vatRate: 0 },
-  { number: '1930', name: 'Maksuvalmius', type: 'asset', vatRate: 0 },
-  { number: '1940', name: 'Pankkisaamiset', type: 'asset', vatRate: 0 },
-  { number: '1950', name: 'Käteiskassa', type: 'asset', vatRate: 0 },
-  // VASTATTAVAA (Liabilities & Equity)
-  { number: '2000', name: 'Osakepääoma', type: 'equity', vatRate: 0 },
-  { number: '2010', name: 'Ylikurssirahasto', type: 'equity', vatRate: 0 },
-  { number: '2020', name: 'Arvonkorotusrahasto', type: 'equity', vatRate: 0 },
-  { number: '2030', name: 'Käyttörahasto', type: 'equity', vatRate: 0 },
-  { number: '2050', name: 'Edellisten tilikausien voitto/tappio', type: 'equity', vatRate: 0 },
-  { number: '2060', name: 'Tilikauden voitto/tappio', type: 'equity', vatRate: 0 },
-  { number: '2100', name: 'Pakolliset varaukset', type: 'liability', vatRate: 0 },
-  { number: '2300', name: 'Laskennallinen verovelka', type: 'liability', vatRate: 0 },
-  { number: '2400', name: 'Verovelat', type: 'liability', vatRate: 0 },
-  { number: '2500', name: 'Eläkevelat', type: 'liability', vatRate: 0 },
-  { number: '2600', name: 'Tilinylitykset', type: 'liability', vatRate: 0 },
-  { number: '2700', name: 'Ennakkomaksut', type: 'liability', vatRate: 0 },
-  { number: '2800', name: 'Ostovelat', type: 'liability', vatRate: 0 },
-  { number: '2900', name: 'Muut velat', type: 'liability', vatRate: 0 },
-  { number: '2950', name: 'Siirtovelat', type: 'liability', vatRate: 0 },
-  // TUOTOT (Revenue)
-  { number: '3000', name: 'Myyntituotot', type: 'revenue', vatRate: 24 },
-  { number: '3100', name: 'Tuote-myynti', type: 'revenue', vatRate: 24 },
-  { number: '3200', name: 'Palvelu-myynti', type: 'revenue', vatRate: 24 },
-  { number: '3300', name: 'Vuokratuotot', type: 'revenue', vatRate: 24 },
-  { number: '3400', name: 'Rahoitustuotot', type: 'revenue', vatRate: 0 },
-  { number: '3500', name: 'Muut tuotot', type: 'revenue', vatRate: 0 },
-  // KULUT (Expenses)
-  { number: '4000', name: 'Aine-, tarvike- ja tavarahankinnat', type: 'expense', vatRate: 24 },
-  { number: '4100', name: 'Palveluhankinnat', type: 'expense', vatRate: 24 },
-  { number: '4200', name: 'Vuokrakulut', type: 'expense', vatRate: 0 },
-  { number: '4300', name: 'Henkilöstökulut', type: 'expense', vatRate: 0 },
-  { number: '4400', name: 'Poistot ja arvonalentumiset', type: 'expense', vatRate: 0 },
-  { number: '4500', name: 'Rahoituskulut', type: 'expense', vatRate: 0 },
-  { number: '4600', name: 'Toimitilakulut', type: 'expense', vatRate: 24 },
-  { number: '4700', name: 'Markkinointikulut', type: 'expense', vatRate: 24 },
-  { number: '4800', name: 'Muut kulut', type: 'expense', vatRate: 24 },
-  { number: '4900', name: 'Verot', type: 'expense', vatRate: 0 },
-  // VAT accounts
-  { number: '29391', name: 'ALV velka', type: 'liability', vatRate: 0 },
-  { number: '29392', name: 'ALV saatava', type: 'asset', vatRate: 0 },
-];
+import { saveEntry, saveCompany, saveLedger, seedLedgerAccounts, setActiveLedgerId } from './firestore';
+import { saveCashRegisterEntry } from './db';
+import type { Entry, Company, CashRegisterEntry, Ledger } from '@/types';
 
 const defaultCompany: Company = {
-  id: 'company-1',
+  id: 'main',
   name: 'Demo Oy',
   yTunnus: '1234567-8',
   address: 'Esimerkkikatu 1',
@@ -190,24 +136,33 @@ function generateId(): string {
 }
 
 export async function seedDatabase(): Promise<void> {
-  const existingAccounts = await getAllAccounts();
-  if (existingAccounts.length > 0) return; // Already seeded
+  const ledgerId = generateId();
+  const ledger: Ledger = {
+    id: ledgerId,
+    name: defaultCompany.name,
+    type: 'company',
+    yTunnus: defaultCompany.yTunnus,
+    isDefault: true,
+    createdAt: new Date().toISOString(),
+  };
 
-  // Save company
+  setActiveLedgerId(ledgerId);
+  await saveLedger(ledger);
   await saveCompany(defaultCompany);
+  await seedLedgerAccounts(ledgerId, 'company');
 
-  // Save accounts
+  // We need account ID mapping for entries
+  // Import dynamic to avoid circular dependency
+  const { getAllAccounts } = await import('./firestore');
+  const accounts = await getAllAccounts();
   const accountIdMap: Record<string, string> = {};
-  for (const acc of defaultAccounts) {
-    const id = generateId();
-    accountIdMap[acc.number] = id;
-    await saveAccount({ ...acc, id });
+  for (const acc of accounts) {
+    accountIdMap[acc.number] = acc.id;
   }
 
-  // Save entries with proper account IDs
   for (const entry of sampleEntries) {
     const id = generateId();
-    const lines = entry.lines.map(line => ({
+    const lines = entry.lines.map((line) => ({
       ...line,
       id: generateId(),
       accountId: accountIdMap[line.accountNumber] || '',
@@ -223,8 +178,7 @@ export async function seedDatabase(): Promise<void> {
     });
   }
 
-  // Save cash register entries
   for (const entry of sampleCashEntries) {
-    await saveCashRegisterEntry({ ...entry, id: generateId() });
+    await saveCashRegisterEntry({ ...entry, id: generateId() }, ledgerId);
   }
 }

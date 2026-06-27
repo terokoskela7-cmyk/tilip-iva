@@ -1,0 +1,45 @@
+import type { Account } from '@/types';
+
+export const housingAccounts: Omit<Account, 'id'>[] = [
+  // VASTAAVAA
+  { number: '1200', name: 'Kiinteistöt', type: 'asset', vatRate: 0 },
+  { number: '1210', name: 'Rakennukset', type: 'asset', vatRate: 0 },
+  { number: '1220', name: 'Koneet ja kalusto', type: 'asset', vatRate: 0 },
+  { number: '1230', name: 'Muut aineelliset hyödykkeet', type: 'asset', vatRate: 0 },
+  { number: '1910', name: 'Myyntisaamiset', type: 'asset', vatRate: 0 },
+  { number: '1920', name: 'Muut saamiset', type: 'asset', vatRate: 0 },
+  { number: '1930', name: 'Pankkitili', type: 'asset', vatRate: 0 },
+  { number: '1940', name: 'Pankkisaamiset', type: 'asset', vatRate: 0 },
+  { number: '1950', name: 'Käteiskassa', type: 'asset', vatRate: 0 },
+  // VASTATTAVAA
+  { number: '2000', name: 'Osakepääoma', type: 'equity', vatRate: 0 },
+  { number: '2050', name: 'Edellisten tilikausien voitto/tappio', type: 'equity', vatRate: 0 },
+  { number: '2060', name: 'Tilikauden voitto/tappio', type: 'equity', vatRate: 0 },
+  { number: '2100', name: 'Pakolliset varaukset', type: 'liability', vatRate: 0 },
+  { number: '2400', name: 'Verovelat', type: 'liability', vatRate: 0 },
+  { number: '2500', name: 'Eläkevelat', type: 'liability', vatRate: 0 },
+  { number: '2600', name: 'Tilinylitykset', type: 'liability', vatRate: 0 },
+  { number: '2700', name: 'Ennakkomaksut', type: 'liability', vatRate: 0 },
+  { number: '2800', name: 'Ostovelat', type: 'liability', vatRate: 0 },
+  { number: '2900', name: 'Muut velat', type: 'liability', vatRate: 0 },
+  { number: '2950', name: 'Siirtovelat', type: 'liability', vatRate: 0 },
+  // TUOTOT
+  { number: '3000', name: 'Hoitovastiketulot', type: 'revenue', vatRate: 0 },
+  { number: '3100', name: 'Rahoitusvastiketulot', type: 'revenue', vatRate: 0 },
+  { number: '3200', name: 'Vuokratulot', type: 'revenue', vatRate: 0 },
+  { number: '3300', name: 'Muut vastiketulot', type: 'revenue', vatRate: 0 },
+  { number: '3500', name: 'Muut tuotot', type: 'revenue', vatRate: 0 },
+  // KULUT
+  { number: '4000', name: 'Isännöinti', type: 'expense', vatRate: 0 },
+  { number: '4100', name: 'Kiinteistöhuolto', type: 'expense', vatRate: 0 },
+  { number: '4200', name: 'Lämmitys', type: 'expense', vatRate: 0 },
+  { number: '4210', name: 'Sähkö', type: 'expense', vatRate: 0 },
+  { number: '4220', name: 'Vesi', type: 'expense', vatRate: 0 },
+  { number: '4230', name: 'Jätehuolto', type: 'expense', vatRate: 0 },
+  { number: '4240', name: 'Kiinteistövero', type: 'expense', vatRate: 0 },
+  { number: '4250', name: 'Vakuutukset', type: 'expense', vatRate: 0 },
+  { number: '4260', name: 'Korjaus ja huolto', type: 'expense', vatRate: 0 },
+  { number: '4400', name: 'Poistot ja arvonalentumiset', type: 'expense', vatRate: 0 },
+  { number: '4500', name: 'Rahoituskulut', type: 'expense', vatRate: 0 },
+  { number: '4800', name: 'Muut kulut', type: 'expense', vatRate: 0 },
+];

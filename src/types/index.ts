@@ -125,6 +125,16 @@ export interface VatPeriod {
   filedDate?: string;
 }
 
+export interface Ledger {
+  id: string;
+  name: string;
+  type: 'company' | 'private' | 'housing-company';
+  yTunnus?: string;
+  description?: string;
+  isDefault: boolean;
+  createdAt: string;
+}
+
 export type View = 'dashboard' | 'journal' | 'accounts' | 'reports' | 'settings' | 'guides' | 'entrepreneur' | 'taxcalc' | 'checklist' | 'cashflow' | 'yel' | 'realestate' | 'invoicing' | 'recurring' | 'banking';
 
 export interface CashRegisterEntry {

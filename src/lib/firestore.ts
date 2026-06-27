@@ -9,8 +9,26 @@ import {
   query,
   orderBy,
   writeBatch,
+  type CollectionReference,
+  type DocumentReference,
 } from 'firebase/firestore';
-import type { Account, Entry, Company, Customer, Invoice, RecurringEntry, VatPeriod, BankAccount, BankTransaction } from '@/types';
+import type {
+  Account,
+  Entry,
+  Company,
+  Customer,
+  Invoice,
+  RecurringEntry,
+  VatPeriod,
+  BankAccount,
+  BankTransaction,
+  Ledger,
+} from '@/types';
+import { defaultAccounts } from '@/data/defaultAccounts';
+import { privateAccounts } from '@/data/privateAccounts';
+import { housingAccounts } from '@/data/housingAccounts';
+
+const ACTIVE_LEDGER_KEY = 'activeLedgerId';
 
 function getUid(): string {
   const uid = auth.currentUser?.uid;
@@ -18,148 +36,277 @@ function getUid(): string {
   return uid;
 }
 
-function userCol(name: string) {
-  return collection(db, 'users', getUid(), name);
+export function getActiveLedgerId(): string {
+  return localStorage.getItem(ACTIVE_LEDGER_KEY) || 'default';
 }
 
-function userDoc(name: string, id: string) {
-  return doc(db, 'users', getUid(), name, id);
+export function setActiveLedgerId(ledgerId: string): void {
+  localStorage.setItem(ACTIVE_LEDGER_KEY, ledgerId);
+}
+
+function ledgersCol(): CollectionReference {
+  return collection(db, 'users', getUid(), 'ledgers');
+}
+
+function ledgerCol(subCollection: string): CollectionReference {
+  return collection(db, 'users', getUid(), 'ledgers', getActiveLedgerId(), subCollection);
+}
+
+function ledgerDoc(subCollection: string, id: string): DocumentReference {
+  return doc(db, 'users', getUid(), 'ledgers', getActiveLedgerId(), subCollection, id);
+}
+
+function specificLedgerCol(ledgerId: string, subCollection: string): CollectionReference {
+  return collection(db, 'users', getUid(), 'ledgers', ledgerId, subCollection);
+}
+
+function specificLedgerDoc(ledgerId: string, subCollection: string, id: string): DocumentReference {
+  return doc(db, 'users', getUid(), 'ledgers', ledgerId, subCollection, id);
+}
+
+// === LEDGERS ===
+export async function getAllLedgers(): Promise<Ledger[]> {
+  const snap = await getDocs(query(ledgersCol(), orderBy('createdAt')));
+  return snap.docs.map((d) => ({ ...d.data(), id: d.id } as Ledger));
+}
+
+export async function saveLedger(ledger: Ledger): Promise<void> {
+  await setDoc(doc(ledgersCol(), ledger.id), ledger);
+}
+
+export async function deleteLedger(ledgerId: string): Promise<void> {
+  await deleteDoc(doc(ledgersCol(), ledgerId));
 }
 
 // === COMPANY ===
 export async function getCompany(): Promise<Company | null> {
-  const snap = await getDoc(doc(db, 'users', getUid(), 'company', 'main'));
+  const snap = await getDoc(ledgerDoc('company', 'main'));
   return snap.exists() ? (snap.data() as Company) : null;
 }
 
 export async function saveCompany(company: Company): Promise<void> {
-  await setDoc(doc(db, 'users', getUid(), 'company', 'main'), company);
+  await setDoc(ledgerDoc('company', 'main'), company);
 }
 
 // === ACCOUNTS ===
 export async function getAllAccounts(): Promise<Account[]> {
-  const snap = await getDocs(query(userCol('accounts'), orderBy('number')));
+  const snap = await getDocs(query(ledgerCol('accounts'), orderBy('number')));
   return snap.docs.map((d) => d.data() as Account);
 }
 
 export async function saveAccount(account: Account): Promise<void> {
-  await setDoc(userDoc('accounts', account.id), account);
+  await setDoc(ledgerDoc('accounts', account.id), account);
 }
 
 export async function deleteAccount(id: string): Promise<void> {
-  await deleteDoc(userDoc('accounts', id));
+  await deleteDoc(ledgerDoc('accounts', id));
 }
 
 // === ENTRIES ===
 export async function getAllEntries(): Promise<Entry[]> {
-  const snap = await getDocs(query(userCol('entries'), orderBy('date', 'desc')));
+  const snap = await getDocs(query(ledgerCol('entries'), orderBy('date', 'desc')));
   return snap.docs.map((d) => d.data() as Entry);
 }
 
 export async function saveEntry(entry: Entry): Promise<void> {
-  await setDoc(userDoc('entries', entry.id), entry);
+  await setDoc(ledgerDoc('entries', entry.id), entry);
 }
 
 export async function getEntryById(id: string): Promise<Entry | null> {
-  const snap = await getDoc(userDoc('entries', id));
+  const snap = await getDoc(ledgerDoc('entries', id));
   return snap.exists() ? (snap.data() as Entry) : null;
 }
 
 export async function deleteEntry(id: string): Promise<void> {
-  await deleteDoc(userDoc('entries', id));
+  await deleteDoc(ledgerDoc('entries', id));
 }
 
 // === CUSTOMERS ===
 export async function getAllCustomers(): Promise<Customer[]> {
-  const snap = await getDocs(query(userCol('customers'), orderBy('name')));
+  const snap = await getDocs(query(ledgerCol('customers'), orderBy('name')));
   return snap.docs.map((d) => d.data() as Customer);
 }
 
 export async function saveCustomer(customer: Customer): Promise<void> {
-  await setDoc(userDoc('customers', customer.id), customer);
+  await setDoc(ledgerDoc('customers', customer.id), customer);
 }
 
 export async function deleteCustomer(id: string): Promise<void> {
-  await deleteDoc(userDoc('customers', id));
+  await deleteDoc(ledgerDoc('customers', id));
 }
 
 // === INVOICES ===
 export async function getAllInvoices(): Promise<Invoice[]> {
-  const snap = await getDocs(query(userCol('invoices'), orderBy('number')));
+  const snap = await getDocs(query(ledgerCol('invoices'), orderBy('number')));
   return snap.docs.map((d) => d.data() as Invoice);
 }
 
 export async function saveInvoice(invoice: Invoice): Promise<void> {
-  await setDoc(userDoc('invoices', invoice.id), invoice);
+  await setDoc(ledgerDoc('invoices', invoice.id), invoice);
 }
 
 export async function deleteInvoice(id: string): Promise<void> {
-  await deleteDoc(userDoc('invoices', id));
+  await deleteDoc(ledgerDoc('invoices', id));
 }
 
 // === RECURRING ENTRIES ===
 export async function getAllRecurringEntries(): Promise<RecurringEntry[]> {
-  const snap = await getDocs(query(userCol('recurringEntries'), orderBy('name')));
+  const snap = await getDocs(query(ledgerCol('recurringEntries'), orderBy('name')));
   return snap.docs.map((d) => d.data() as RecurringEntry);
 }
 
 export async function saveRecurringEntry(entry: RecurringEntry): Promise<void> {
-  await setDoc(userDoc('recurringEntries', entry.id), entry);
+  await setDoc(ledgerDoc('recurringEntries', entry.id), entry);
 }
 
 export async function deleteRecurringEntry(id: string): Promise<void> {
-  await deleteDoc(userDoc('recurringEntries', id));
+  await deleteDoc(ledgerDoc('recurringEntries', id));
 }
 
 // === VAT PERIODS ===
 export async function getAllVatPeriods(): Promise<VatPeriod[]> {
-  const snap = await getDocs(query(userCol('vatPeriods'), orderBy('startDate', 'desc')));
+  const snap = await getDocs(query(ledgerCol('vatPeriods'), orderBy('startDate', 'desc')));
   return snap.docs.map((d) => d.data() as VatPeriod);
 }
 
 export async function saveVatPeriod(period: VatPeriod): Promise<void> {
-  await setDoc(userDoc('vatPeriods', period.id), period);
+  await setDoc(ledgerDoc('vatPeriods', period.id), period);
 }
 
 export async function deleteVatPeriod(id: string): Promise<void> {
-  await deleteDoc(userDoc('vatPeriods', id));
+  await deleteDoc(ledgerDoc('vatPeriods', id));
 }
 
 // === BANK ACCOUNTS ===
 export async function getAllBankAccounts(): Promise<BankAccount[]> {
-  const snap = await getDocs(query(userCol('bankAccounts'), orderBy('name')));
+  const snap = await getDocs(query(ledgerCol('bankAccounts'), orderBy('name')));
   return snap.docs.map((d) => d.data() as BankAccount);
 }
 
 export async function saveBankAccount(account: BankAccount): Promise<void> {
-  await setDoc(userDoc('bankAccounts', account.id), account);
+  await setDoc(ledgerDoc('bankAccounts', account.id), account);
 }
 
 export async function deleteBankAccount(id: string): Promise<void> {
-  await deleteDoc(userDoc('bankAccounts', id));
+  await deleteDoc(ledgerDoc('bankAccounts', id));
 }
 
 // === BANK TRANSACTIONS ===
 export async function getAllTransactions(): Promise<BankTransaction[]> {
-  const snap = await getDocs(query(userCol('bankTransactions'), orderBy('date', 'desc')));
+  const snap = await getDocs(query(ledgerCol('bankTransactions'), orderBy('date', 'desc')));
   return snap.docs.map((d) => d.data() as BankTransaction);
 }
 
 export async function saveTransaction(tx: BankTransaction): Promise<void> {
-  await setDoc(userDoc('bankTransactions', tx.id), tx);
+  await setDoc(ledgerDoc('bankTransactions', tx.id), tx);
 }
 
 export async function deleteTransaction(id: string): Promise<void> {
-  await deleteDoc(userDoc('bankTransactions', id));
+  await deleteDoc(ledgerDoc('bankTransactions', id));
 }
 
 // === BATCH OPERATIONS ===
-export async function saveManyAccounts(accounts: Account[]): Promise<void> {
+export async function saveManyAccounts(accounts: Account[], ledgerId?: string): Promise<void> {
   const batch = writeBatch(db);
+  const targetLedgerId = ledgerId || getActiveLedgerId();
   for (const account of accounts) {
-    batch.set(userDoc('accounts', account.id), account);
+    batch.set(specificLedgerDoc(targetLedgerId, 'accounts', account.id), account);
   }
   await batch.commit();
+}
+
+// === SEEDING ===
+export function getAccountsForLedgerType(type: Ledger['type']): Omit<Account, 'id'>[] {
+  switch (type) {
+    case 'private':
+      return privateAccounts;
+    case 'housing-company':
+      return housingAccounts;
+    case 'company':
+    default:
+      return defaultAccounts;
+  }
+}
+
+export async function seedLedgerAccounts(ledgerId: string, type: Ledger['type']): Promise<void> {
+  const source = getAccountsForLedgerType(type);
+  const accounts: Account[] = source.map((acc) => ({
+    ...acc,
+    id: generateId(),
+  }));
+  await saveManyAccounts(accounts, ledgerId);
+}
+
+// === MIGRATION ===
+export async function migrateToLedgers(): Promise<void> {
+  const uid = getUid();
+  const ledgerId = 'default';
+
+  const oldAccounts = await getDocs(collection(db, 'users', uid, 'accounts'));
+  const oldEntries = await getDocs(collection(db, 'users', uid, 'entries'));
+  const oldCustomers = await getDocs(collection(db, 'users', uid, 'customers'));
+  const oldInvoices = await getDocs(collection(db, 'users', uid, 'invoices'));
+  const oldRecurring = await getDocs(collection(db, 'users', uid, 'recurringEntries'));
+  const oldVatPeriods = await getDocs(collection(db, 'users', uid, 'vatPeriods'));
+  const oldBankAccounts = await getDocs(collection(db, 'users', uid, 'bankAccounts'));
+  const oldBankTransactions = await getDocs(collection(db, 'users', uid, 'bankTransactions'));
+  const oldCompany = await getDoc(doc(db, 'users', uid, 'company', 'main'));
+
+  // Only migrate if there's any old data
+  const hasOldData =
+    !oldAccounts.empty ||
+    !oldEntries.empty ||
+    !oldCustomers.empty ||
+    !oldInvoices.empty ||
+    !oldRecurring.empty ||
+    !oldVatPeriods.empty ||
+    !oldBankAccounts.empty ||
+    !oldBankTransactions.empty ||
+    oldCompany.exists();
+
+  if (!hasOldData) return;
+
+  const defaultLedger: Ledger = {
+    id: ledgerId,
+    name: 'Yritys',
+    type: 'company',
+    isDefault: true,
+    createdAt: new Date().toISOString(),
+  };
+  await saveLedger(defaultLedger);
+
+  const batch = writeBatch(db);
+
+  for (const d of oldAccounts.docs) {
+    batch.set(specificLedgerDoc(ledgerId, 'accounts', d.id), d.data());
+  }
+  for (const d of oldEntries.docs) {
+    batch.set(specificLedgerDoc(ledgerId, 'entries', d.id), d.data());
+  }
+  for (const d of oldCustomers.docs) {
+    batch.set(specificLedgerDoc(ledgerId, 'customers', d.id), d.data());
+  }
+  for (const d of oldInvoices.docs) {
+    batch.set(specificLedgerDoc(ledgerId, 'invoices', d.id), d.data());
+  }
+  for (const d of oldRecurring.docs) {
+    batch.set(specificLedgerDoc(ledgerId, 'recurringEntries', d.id), d.data());
+  }
+  for (const d of oldVatPeriods.docs) {
+    batch.set(specificLedgerDoc(ledgerId, 'vatPeriods', d.id), d.data());
+  }
+  for (const d of oldBankAccounts.docs) {
+    batch.set(specificLedgerDoc(ledgerId, 'bankAccounts', d.id), d.data());
+  }
+  for (const d of oldBankTransactions.docs) {
+    batch.set(specificLedgerDoc(ledgerId, 'bankTransactions', d.id), d.data());
+  }
+  if (oldCompany.exists()) {
+    batch.set(specificLedgerDoc(ledgerId, 'company', 'main'), oldCompany.data());
+  }
+
+  await batch.commit();
+  setActiveLedgerId(ledgerId);
 }
 
 // === EXPORT ===
@@ -184,14 +331,19 @@ export async function exportAllData(): Promise<Record<string, unknown[]>> {
 
 // === RESET ===
 export async function resetDatabase(): Promise<void> {
-  const cols = ['accounts', 'entries', 'customers', 'invoices', 'recurringEntries', 'vatPeriods'];
+  const cols = ['accounts', 'entries', 'customers', 'invoices', 'recurringEntries', 'vatPeriods', 'bankAccounts', 'bankTransactions'];
+  const ledgerId = getActiveLedgerId();
   for (const colName of cols) {
-    const snap = await getDocs(userCol(colName));
+    const snap = await getDocs(specificLedgerCol(ledgerId, colName));
     const batch = writeBatch(db);
     for (const d of snap.docs) {
       batch.delete(d.ref);
     }
     await batch.commit();
   }
-  await deleteDoc(doc(db, 'users', getUid(), 'company', 'main'));
+  await deleteDoc(specificLedgerDoc(ledgerId, 'company', 'main'));
+}
+
+function generateId(): string {
+  return Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
 }

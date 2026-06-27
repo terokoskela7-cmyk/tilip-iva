@@ -6,9 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
-import { saveCompany, saveManyAccounts } from '@/lib/firestore';
-import { defaultAccounts } from '@/data/defaultAccounts';
-import type { Company, Account } from '@/types';
+import { saveCompany, saveLedger, seedLedgerAccounts, setActiveLedgerId } from '@/lib/firestore';
+import type { Company, Ledger } from '@/types';
 
 interface OnboardingProps {
   onComplete: () => void;
@@ -54,13 +53,20 @@ export function Onboarding({ onComplete }: OnboardingProps) {
         accountantPhone: '',
       };
 
-      const accounts: Account[] = defaultAccounts.map((acc) => ({
-        ...acc,
-        id: generateId(),
-      }));
+      const ledgerId = generateId();
+      const ledger: Ledger = {
+        id: ledgerId,
+        name: company.name,
+        type: 'company',
+        yTunnus: company.yTunnus || undefined,
+        isDefault: true,
+        createdAt: new Date().toISOString(),
+      };
 
+      setActiveLedgerId(ledgerId);
+      await saveLedger(ledger);
       await saveCompany(company);
-      await saveManyAccounts(accounts);
+      await seedLedgerAccounts(ledgerId, 'company');
 
       onComplete();
     } catch (err) {

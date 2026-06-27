@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { Account, Entry, Company, CashRegisterEntry, Customer, Invoice, RecurringEntry, View } from '@/types';
+import type { Account, Entry, Company, CashRegisterEntry, Customer, Invoice, RecurringEntry, View, Ledger, BankAccount, BankTransaction } from '@/types';
 import {
   getAllAccounts,
   getAllEntries,
@@ -19,6 +19,14 @@ import {
   deleteCustomer,
   deleteInvoice,
   deleteRecurringEntry,
+  getAllLedgers,
+  migrateToLedgers,
+  setActiveLedgerId,
+  getActiveLedgerId,
+  saveLedger,
+  seedLedgerAccounts,
+  getAllBankAccounts,
+  getAllTransactions,
 } from '@/lib/firestore';
 import { deleteAttachment } from '@/lib/storage';
 import {
@@ -35,6 +43,10 @@ export function useStore() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [recurringEntries, setRecurringEntries] = useState<RecurringEntry[]>([]);
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
+  const [bankTransactions, setBankTransactions] = useState<BankTransaction[]>([]);
+  const [ledgers, setLedgers] = useState<Ledger[]>([]);
+  const [activeLedgerId, setActiveLedgerIdState] = useState<string>(() => getActiveLedgerId());
   const [loading, setLoading] = useState(true);
   const [hasCompany, setHasCompany] = useState<boolean | null>(null);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
@@ -43,15 +55,38 @@ export function useStore() {
   const [editingEntry, setEditingEntry] = useState<Entry | null>(null);
   const [lastBackup, setLastBackup] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [ledgerModalOpen, setLedgerModalOpen] = useState(false);
 
   const showToast = useCallback((message: string, type: 'success' | 'error') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
   }, []);
 
+  const changeActiveLedger = useCallback(async (ledgerId: string) => {
+    setActiveLedgerId(ledgerId);
+    setActiveLedgerIdState(ledgerId);
+    setSelectedAccountId(null);
+    setSearchQuery('');
+  }, []);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
+      let existingLedgers = await getAllLedgers();
+      if (existingLedgers.length === 0) {
+        await migrateToLedgers();
+        existingLedgers = await getAllLedgers();
+      }
+      setLedgers(existingLedgers);
+
+      let currentLedgerId = getActiveLedgerId();
+      const ids = existingLedgers.map((l) => l.id);
+      if (!ids.includes(currentLedgerId) && ids.length > 0) {
+        currentLedgerId = ids[0];
+        setActiveLedgerId(currentLedgerId);
+      }
+      setActiveLedgerIdState(currentLedgerId);
+
       const comp = await getCompany();
       if (!comp) {
         setHasCompany(false);
@@ -61,13 +96,15 @@ export function useStore() {
       setHasCompany(true);
       setCompany(comp);
 
-      const [acc, ent, cash, cust, inv, rec] = await Promise.all([
+      const [acc, ent, cash, cust, inv, rec, bankAcc, bankTx] = await Promise.all([
         getAllAccounts(),
         getAllEntries(),
-        getAllCashRegisterEntries(),
+        getAllCashRegisterEntries(currentLedgerId),
         getAllCustomers(),
         getAllInvoices(),
         getAllRecurringEntries(),
+        getAllBankAccounts(),
+        getAllTransactions(),
       ]);
       setAccounts(acc);
       setEntries(ent);
@@ -75,6 +112,8 @@ export function useStore() {
       setCustomers(cust);
       setInvoices(inv);
       setRecurringEntries(rec);
+      setBankAccounts(bankAcc);
+      setBankTransactions(bankTx);
       setLastBackup(new Date().toLocaleTimeString('fi-FI'));
     } catch (e) {
       console.error('Virhe ladattaessa tietoja:', e);
@@ -88,6 +127,20 @@ export function useStore() {
     loadData();
   }, [loadData]);
 
+  const createLedger = useCallback(async (data: Omit<Ledger, 'id' | 'createdAt'>) => {
+    const id = generateId();
+    const ledger: Ledger = {
+      ...data,
+      id,
+      createdAt: new Date().toISOString(),
+    };
+    await saveLedger(ledger);
+    await seedLedgerAccounts(id, ledger.type);
+    await changeActiveLedger(id);
+    await loadData();
+    showToast('Tilikirja luotu', 'success');
+  }, [changeActiveLedger, loadData, showToast]);
+
   const refreshAccounts = useCallback(async () => {
     const acc = await getAllAccounts();
     setAccounts(acc);
@@ -99,7 +152,7 @@ export function useStore() {
   }, []);
 
   const refreshCashEntries = useCallback(async () => {
-    const cash = await getAllCashRegisterEntries();
+    const cash = await getAllCashRegisterEntries(getActiveLedgerId());
     setCashEntries(cash);
   }, []);
 
@@ -116,6 +169,16 @@ export function useStore() {
   const refreshRecurring = useCallback(async () => {
     const rec = await getAllRecurringEntries();
     setRecurringEntries(rec);
+  }, []);
+
+  const refreshBankAccounts = useCallback(async () => {
+    const acc = await getAllBankAccounts();
+    setBankAccounts(acc);
+  }, []);
+
+  const refreshBankTransactions = useCallback(async () => {
+    const tx = await getAllTransactions();
+    setBankTransactions(tx);
   }, []);
 
   const addEntry = useCallback(async (entry: Entry) => {
@@ -166,7 +229,7 @@ export function useStore() {
   }, [showToast]);
 
   const addCashEntry = useCallback(async (entry: CashRegisterEntry) => {
-    await saveCashRegisterEntry(entry);
+    await saveCashRegisterEntry(entry, getActiveLedgerId());
     await refreshCashEntries();
     setLastBackup(new Date().toLocaleTimeString('fi-FI'));
     showToast('Kassatapahtuma tallennettu', 'success');
@@ -283,6 +346,13 @@ export function useStore() {
     setEditingEntry,
     lastBackup,
     toast,
+    ledgers,
+    activeLedgerId,
+    setActiveLedger: changeActiveLedger,
+    createLedger,
+    loadData,
+    ledgerModalOpen,
+    setLedgerModalOpen,
     addEntry,
     removeEntry,
     addAccount,
@@ -301,12 +371,19 @@ export function useStore() {
     refreshRecurring,
     refreshAccounts,
     refreshEntries,
-    loadData,
     addCustomer,
     removeCustomer,
     addInvoice,
     removeInvoice,
     addRecurringEntry,
     removeRecurringEntry,
+    bankAccounts,
+    bankTransactions,
+    refreshBankAccounts,
+    refreshBankTransactions,
   };
+}
+
+function generateId(): string {
+  return Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
 }
