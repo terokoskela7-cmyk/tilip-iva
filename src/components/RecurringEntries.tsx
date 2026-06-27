@@ -173,13 +173,13 @@ export default function RecurringEntries({ accounts, onGenerateEntry }: Recurrin
                     </div>
                   </div>
                   <div className="flex items-center gap-1 ml-4">
-                    <Button variant="ghost" size="sm" onClick={() => handleGenerate(item)} title="Luo tosite">
+                    <Button variant="ghost" size="sm" onClick={() => handleGenerate(item)} title="Luo tosite" aria-label="Luo tosite">
                       <Play className="w-4 h-4 text-green-600" />
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => openEdit(item)} title="Muokkaa">
+                    <Button variant="ghost" size="sm" onClick={() => openEdit(item)} title="Muokkaa" aria-label="Muokkaa toistuvaa tositetta">
                       <Pencil className="w-4 h-4 text-gray-500" />
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleDelete(item.id)} title="Poista">
+                    <Button variant="ghost" size="sm" onClick={() => handleDelete(item.id)} title="Poista" aria-label="Poista toistuva tosite">
                       <Trash2 className="w-4 h-4 text-red-500" />
                     </Button>
                   </div>
@@ -239,7 +239,7 @@ export default function RecurringEntries({ accounts, onGenerateEntry }: Recurrin
                     <div className="col-span-2"><Input type="number" className="text-xs h-8" placeholder="Debet" value={line.debit || ''} onChange={(e) => updateLine(idx, 'debit', parseFloat(e.target.value) || 0)} /></div>
                     <div className="col-span-2"><Input type="number" className="text-xs h-8" placeholder="Kredit" value={line.credit || ''} onChange={(e) => updateLine(idx, 'credit', parseFloat(e.target.value) || 0)} /></div>
                     <div className="col-span-2"><Input type="text" className="text-xs h-8" placeholder="Selite" value={line.description} onChange={(e) => updateLine(idx, 'description', e.target.value)} /></div>
-                    <div className="col-span-1"><Button variant="ghost" size="sm" onClick={() => removeLine(idx)} disabled={lines.length <= 2} className="text-red-500 h-8 w-8 p-0"><Trash2 className="w-3 h-3" /></Button></div>
+                    <div className="col-span-1"><Button variant="ghost" size="sm" onClick={() => removeLine(idx)} disabled={lines.length <= 2} className="text-red-500 h-8 w-8 p-0" aria-label="Poista rivi"><Trash2 className="w-3 h-3" /></Button></div>
                   </div>
                 ))}
               </div>

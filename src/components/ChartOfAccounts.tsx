@@ -117,7 +117,7 @@ export default function ChartOfAccounts({ accounts, onAddAccount, onDeleteAccoun
                       <span className={`text-sm tabular-nums font-medium ${bal >= 0 ? 'text-gray-900' : 'text-red-600'}`}>
                         {formatMoney(Math.abs(bal))}
                       </span>
-                      <Button variant="ghost" size="sm" onClick={() => onDeleteAccount(acc.id)} className="h-8 w-8 p-0">
+                      <Button variant="ghost" size="sm" onClick={() => onDeleteAccount(acc.id)} className="h-8 w-8 p-0" aria-label="Poista tili">
                         <Trash2 className="w-4 h-4 text-red-500" />
                       </Button>
                     </div>

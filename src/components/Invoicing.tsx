@@ -286,19 +286,19 @@ export default function Invoicing({ companyName, companyYTunnus, companyAddress,
                     </div>
                     <div className="flex items-center gap-1">
                       {inv.status === 'draft' && (
-                        <Button variant="ghost" size="sm" onClick={() => markSent(inv.id)} title="Merkitse lähetetyksi">
+                        <Button variant="ghost" size="sm" onClick={() => markSent(inv.id)} title="Merkitse lähetetyksi" aria-label="Merkitse lähetetyksi">
                           <Send className="w-4 h-4 text-blue-600" />
                         </Button>
                       )}
                       {inv.status === 'sent' && (
-                        <Button variant="ghost" size="sm" onClick={() => markPaid(inv.id)} title="Merkitse maksetuksi + kirjaus">
+                        <Button variant="ghost" size="sm" onClick={() => markPaid(inv.id)} title="Merkitse maksetuksi + kirjaus" aria-label="Merkitse maksetuksi">
                           <CheckCircle className="w-4 h-4 text-green-600" />
                         </Button>
                       )}
-                      <Button variant="ghost" size="sm" onClick={() => generatePDF(inv)} title="Lataa PDF">
+                      <Button variant="ghost" size="sm" onClick={() => generatePDF(inv)} title="Lataa PDF" aria-label="Lataa PDF">
                         <Download className="w-4 h-4 text-gray-500" />
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => { deleteInvoice(inv.id); loadData(); }} title="Poista">
+                      <Button variant="ghost" size="sm" onClick={() => { deleteInvoice(inv.id); loadData(); }} title="Poista" aria-label="Poista lasku">
                         <Trash2 className="w-4 h-4 text-red-500" />
                       </Button>
                     </div>
@@ -317,7 +317,7 @@ export default function Invoicing({ companyName, companyYTunnus, companyAddress,
                     <p className="text-xs text-gray-500">{c.address}, {c.postalCode} {c.city}</p>
                     <p className="text-xs text-gray-400">Maksuehto: {c.paymentTerm} pv</p>
                   </div>
-                  <Button variant="ghost" size="sm" onClick={() => { deleteCustomer(c.id); loadData(); }}>
+                  <Button variant="ghost" size="sm" onClick={() => { deleteCustomer(c.id); loadData(); }} aria-label="Poista asiakas">
                     <Trash2 className="w-4 h-4 text-red-500" />
                   </Button>
                 </CardContent>
@@ -369,7 +369,7 @@ export default function Invoicing({ companyName, companyYTunnus, companyAddress,
                       </Select>
                     </div>
                     <div className="col-span-2 text-xs text-right text-gray-700">{line.total.toFixed(2)} €</div>
-                    <div className="col-span-1"><Button variant="ghost" size="sm" onClick={() => removeInvLine(idx)} disabled={invLines.length <= 1} className="h-8 w-8 p-0"><Trash2 className="w-3 h-3 text-red-500" /></Button></div>
+                    <div className="col-span-1"><Button variant="ghost" size="sm" onClick={() => removeInvLine(idx)} disabled={invLines.length <= 1} className="h-8 w-8 p-0" aria-label="Poista rivi"><Trash2 className="w-3 h-3 text-red-500" /></Button></div>
                   </div>
                 ))}
               </div>

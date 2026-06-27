@@ -157,8 +157,8 @@ export default function Journal({ entries, accounts, onNewEntry, onEditEntry, on
                 </td>
                 <td className="px-4 py-3 text-right">
                   <div className="flex justify-end gap-1">
-                    <Button variant="ghost" size="sm" onClick={() => onEditEntry(e)} className="h-8 w-8 p-0"><Pencil className="w-4 h-4 text-gray-500" /></Button>
-                    <Button variant="ghost" size="sm" onClick={() => onDeleteEntry(e.id)} className="h-8 w-8 p-0"><Trash2 className="w-4 h-4 text-red-500" /></Button>
+                    <Button variant="ghost" size="sm" onClick={() => onEditEntry(e)} className="h-8 w-8 p-0" aria-label="Muokkaa tositetta"><Pencil className="w-4 h-4 text-gray-500" /></Button>
+                    <Button variant="ghost" size="sm" onClick={() => onDeleteEntry(e.id)} className="h-8 w-8 p-0" aria-label="Poista tosite"><Trash2 className="w-4 h-4 text-red-500" /></Button>
                   </div>
                 </td>
               </tr>

@@ -113,7 +113,7 @@ export default function Sidebar({ view, onViewChange, companyName, yTunnus, last
             <p className="font-medium text-gray-900 truncate">{companyName || 'Yritys'}</p>
             <p className="text-gray-500 text-xs">{yTunnus || ''}</p>
           </div>
-          <button onClick={() => setMobileOpen(false)} className="p-1.5 rounded-md hover:bg-gray-200">
+          <button onClick={() => setMobileOpen(false)} className="p-1.5 rounded-md hover:bg-gray-200" aria-label="Sulje valikko">
             <X className="w-5 h-5" />
           </button>
         </div>
