@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef } from 'react';
-import { Plus, Trash2, TrendingUp, Wallet, Landmark, Coins, Sparkles, Upload, Save, X } from 'lucide-react';
+import { Plus, Trash2, TrendingUp, Wallet, Landmark, Coins, Upload, Save, X, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -183,23 +183,24 @@ function autoCategorize(description: string, amount: number): { type: 'income' |
   return { type: amount >= 0 ? 'income' : 'expense', category: 'muut', confidence: 'low' };
 }
 
-function createDemoData(month: string): Omit<PersonalEntry, 'id' | 'createdAt'>[] {
+function createDemoData(month: string): PersonalEntry[] {
+  const now = new Date().toISOString();
   return [
-    { date: `${month}-01`, description: 'Palkka', amount: 3200, category: 'palkka' },
-    { date: `${month}-02`, description: 'Sivutulo verkkokaupasta', amount: 250, category: 'sivutulo' },
-    { date: `${month}-03`, description: 'Ruokaostokset Prisma', amount: -85.5, category: 'ruoka' },
-    { date: `${month}-04`, description: 'Vuokra', amount: -950, category: 'asuminen' },
-    { date: `${month}-05`, description: 'Bussilippu', amount: -55, category: 'liikenne' },
-    { date: `${month}-06`, description: 'Elokuvat', amount: -28, category: 'viihde' },
-    { date: `${month}-07`, description: 'Apteekki', amount: -32.4, category: 'terveys' },
-    { date: `${month}-08`, description: 'Uudet kengät', amount: -89.9, category: 'vaatteet' },
-    { date: `${month}-09`, description: 'Verkkokurssi', amount: -49, category: 'koulutus' },
-    { date: `${month}-10`, description: 'Kahvit ja lahjat', amount: -24.6, category: 'muut' },
-    { date: `${month}-11`, description: 'Sähkölasku', amount: -62, category: 'asuminen' },
-    { date: `${month}-12`, description: 'Polttoaine', amount: -74, category: 'liikenne' },
-    { date: `${month}-13`, description: 'Spotify', amount: -12.99, category: 'viihde' },
-    { date: `${month}-14`, description: 'Kirja', amount: -24.9, category: 'koulutus' },
-    { date: `${month}-15`, description: 'Lounas', amount: -13.5, category: 'ruoka' },
+    { id: generateId(), date: `${month}-01`, description: 'Palkka', amount: 3200, category: 'palkka', createdAt: now },
+    { id: generateId(), date: `${month}-02`, description: 'Sivutulo verkkokaupasta', amount: 250, category: 'sivutulo', createdAt: now },
+    { id: generateId(), date: `${month}-03`, description: 'Ruokaostokset Prisma', amount: -85.5, category: 'ruoka', createdAt: now },
+    { id: generateId(), date: `${month}-04`, description: 'Vuokra', amount: -950, category: 'asuminen', createdAt: now },
+    { id: generateId(), date: `${month}-05`, description: 'Bussilippu', amount: -55, category: 'liikenne', createdAt: now },
+    { id: generateId(), date: `${month}-06`, description: 'Elokuvat', amount: -28, category: 'viihde', createdAt: now },
+    { id: generateId(), date: `${month}-07`, description: 'Apteekki', amount: -32.4, category: 'terveys', createdAt: now },
+    { id: generateId(), date: `${month}-08`, description: 'Uudet kengät', amount: -89.9, category: 'vaatteet', createdAt: now },
+    { id: generateId(), date: `${month}-09`, description: 'Verkkokurssi', amount: -49, category: 'koulutus', createdAt: now },
+    { id: generateId(), date: `${month}-10`, description: 'Kahvit ja lahjat', amount: -24.6, category: 'muut', createdAt: now },
+    { id: generateId(), date: `${month}-11`, description: 'Sähkölasku', amount: -62, category: 'asuminen', createdAt: now },
+    { id: generateId(), date: `${month}-12`, description: 'Polttoaine', amount: -74, category: 'liikenne', createdAt: now },
+    { id: generateId(), date: `${month}-13`, description: 'Spotify', amount: -12.99, category: 'viihde', createdAt: now },
+    { id: generateId(), date: `${month}-14`, description: 'Kirja', amount: -24.9, category: 'koulutus', createdAt: now },
+    { id: generateId(), date: `${month}-15`, description: 'Lounas', amount: -13.5, category: 'ruoka', createdAt: now },
   ];
 }
 
@@ -218,15 +219,22 @@ export default function PersonalFinance({
   const [category, setCategory] = useState('');
   const [accountId, setAccountId] = useState('cash');
   const [selectedMonth, setSelectedMonth] = useState(monthKey(new Date()));
+  const [demoMode, setDemoMode] = useState(false);
   const [previewRows, setPreviewRows] = useState<ParsedRow[] | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const selectedCategories = type === 'income' ? incomeCategories : expenseCategories;
 
+  const demoEntries = useMemo(() => (demoMode ? createDemoData(selectedMonth) : []), [demoMode, selectedMonth]);
+
+  const displayEntries = useMemo(() => {
+    return [...entries, ...demoEntries];
+  }, [entries, demoEntries]);
+
   const filteredEntries = useMemo(() => {
-    return entries.filter((e) => e.date.startsWith(selectedMonth));
-  }, [entries, selectedMonth]);
+    return displayEntries.filter((e) => e.date.startsWith(selectedMonth));
+  }, [displayEntries, selectedMonth]);
 
   const totals = useMemo(() => {
     const income = filteredEntries.filter((e) => e.amount > 0).reduce((sum, e) => sum + e.amount, 0);
@@ -259,7 +267,7 @@ export default function PersonalFinance({
       const start = startOfMonth(subMonths(now, i));
       const label = format(start, 'MMM', { locale: fi });
       const mk = format(start, 'yyyy-MM');
-      const monthEntries = entries.filter((e) => e.date.startsWith(mk));
+      const monthEntries = displayEntries.filter((e) => e.date.startsWith(mk));
       const income = monthEntries.filter((e) => e.amount > 0).reduce((sum, e) => sum + e.amount, 0);
       const expense = monthEntries.filter((e) => e.amount < 0).reduce((sum, e) => sum + Math.abs(e.amount), 0);
       months.push({ month: label, income, expense });
@@ -374,15 +382,8 @@ export default function PersonalFinance({
     setTimeout(() => setSuccess(null), 3000);
   };
 
-  const addDemoData = () => {
-    const demo = createDemoData(selectedMonth);
-    let count = 0;
-    for (const entry of demo) {
-      onAddEntry({ ...entry, id: generateId(), createdAt: new Date().toISOString() });
-      count++;
-    }
-    setSuccess(`Lisätty ${count} demotapahtumaa kuukaudelle ${selectedMonth}`);
-    setTimeout(() => setSuccess(null), 3000);
+  const toggleDemo = () => {
+    setDemoMode((prev) => !prev);
   };
 
   const previewTotals = useMemo(() => {
@@ -428,8 +429,9 @@ export default function PersonalFinance({
             <Upload className="w-4 h-4 mr-2" /> CSV
           </Button>
           <input ref={fileInputRef} type="file" accept=".csv,.txt" className="hidden" onChange={handleFileUpload} />
-          <Button variant="outline" size="sm" onClick={addDemoData}>
-            <Sparkles className="w-4 h-4 mr-2" /> Demo-data
+          <Button variant={demoMode ? 'default' : 'outline'} size="sm" onClick={toggleDemo}>
+            {demoMode ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
+            {demoMode ? 'Demo pois' : 'Demo'}
           </Button>
         </div>
       </div>
