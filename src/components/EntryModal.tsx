@@ -62,12 +62,14 @@ export default function EntryModal({ open, onOpenChange, onSave, editingEntry, a
   }
 
   function addLine() {
-    setLines([...lines, createEmptyLine()]);
+    setLines((prev) => [...prev, createEmptyLine()]);
   }
 
   function removeLine(index: number) {
-    if (lines.length <= 2) return;
-    setLines(lines.filter((_, i) => i !== index));
+    setLines((prev) => {
+      if (prev.length <= 2) return prev;
+      return prev.filter((_, i) => i !== index);
+    });
   }
 
   function updateLine(index: number, field: keyof EntryLine, value: string | number) {
@@ -277,7 +279,15 @@ export default function EntryModal({ open, onOpenChange, onSave, editingEntry, a
                     <Input type="text" value={line.description} onChange={(e) => updateLine(index, 'description', e.target.value)} className="text-sm" placeholder="Selite" />
                   </div>
                   <div className="col-span-1 flex justify-end">
-                    <Button type="button" variant="ghost" size="sm" onClick={() => removeLine(index)} disabled={lines.length <= 2} className="text-red-500 hover:text-red-700">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeLine(index)}
+                      disabled={lines.length <= 2}
+                      title={lines.length <= 2 ? 'Tosite vaatii vähintään 2 riviä' : 'Poista rivi'}
+                      className="text-red-500 hover:text-red-700 disabled:opacity-30"
+                    >
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
