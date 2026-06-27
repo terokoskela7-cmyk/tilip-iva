@@ -144,6 +144,7 @@ export interface PersonalEntry {
   description: string;
   amount: number;
   category: string;
+  accountId?: string;
   notes?: string;
   createdAt: string;
 }
@@ -160,7 +161,7 @@ export interface Budget {
   items: BudgetItem[];
 }
 
-export type View = 'dashboard' | 'journal' | 'accounts' | 'reports' | 'settings' | 'guides' | 'entrepreneur' | 'taxcalc' | 'checklist' | 'cashflow' | 'yel' | 'realestate' | 'invoicing' | 'recurring' | 'banking' | 'personal' | 'budget' | 'firstinvoice';
+export type View = 'dashboard' | 'journal' | 'accounts' | 'reports' | 'settings' | 'guides' | 'entrepreneur' | 'taxcalc' | 'checklist' | 'cashflow' | 'yel' | 'realestate' | 'invoicing' | 'recurring' | 'banking' | 'personalfinance' | 'budget' | 'firstinvoice';
 
 export interface CashRegisterEntry {
   id: string;

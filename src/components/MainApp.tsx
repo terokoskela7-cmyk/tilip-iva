@@ -29,6 +29,7 @@ const Invoicing = lazy(() => import('@/components/Invoicing'));
 const RecurringEntries = lazy(() => import('@/components/RecurringEntries'));
 const Banking = lazy(() => import('@/components/Banking'));
 const PersonalFinance = lazy(() => import('@/components/PersonalFinance'));
+const BudgetPage = lazy(() => import('@/components/BudgetPage'));
 const FirstInvoiceGuide = lazy(() => import('@/components/FirstInvoiceGuide'));
 
 function PageLoader() {
@@ -122,14 +123,28 @@ export function MainApp() {
           />
         )}
 
-        {(store.view === 'personal' || store.view === 'budget') && (
+        {store.view === 'personalfinance' && (
           <Suspense fallback={<PageLoader />}>
             <PersonalFinance
               entries={store.personalEntries}
-              budgets={store.budgets}
-              accounts={store.accounts}
+              bankAccounts={store.bankAccounts}
+              bankTransactions={store.bankTransactions}
+              cashEntries={store.cashEntries}
               onAddEntry={store.addPersonalEntry}
               onDeleteEntry={store.removePersonalEntry}
+              onAddDemoData={() => {
+                // Demo data seed handled via a helper loaded on demand
+                import('@/lib/personalDemoData').then((mod) => mod.seedPersonalDemoData(store.addPersonalEntry, store.addBudget));
+              }}
+            />
+          </Suspense>
+        )}
+
+        {store.view === 'budget' && (
+          <Suspense fallback={<PageLoader />}>
+            <BudgetPage
+              budgets={store.budgets}
+              entries={store.personalEntries}
               onSaveBudget={store.addBudget}
             />
           </Suspense>

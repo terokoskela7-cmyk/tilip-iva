@@ -3,7 +3,7 @@ import {
   Home, BookOpen, ListTree, BarChart3, Settings, User, CircleDot,
   GraduationCap, Rocket, Calculator, CalendarCheck, Wallet, Shield,
   Building2, Receipt, Repeat, X, Menu, LogOut, Landmark, PiggyBank,
-  PieChart, FilePlus
+  FilePlus, Banknote
 } from 'lucide-react';
 import type { View, Ledger } from '@/types';
 import { LedgerSelector } from './LedgerSelector';
@@ -24,7 +24,7 @@ interface SidebarProps {
 
 const allNavItems: { view: View; label: string; icon: typeof Home; hideFor?: Ledger['type'][] }[] = [
   { view: 'dashboard', label: 'Koti', icon: Home },
-  { view: 'personal', label: 'Oma talous', icon: PieChart, hideFor: ['company', 'private', 'housing-company'] },
+  { view: 'personalfinance', label: 'Oma talous', icon: Banknote, hideFor: ['company', 'private', 'housing-company'] },
   { view: 'budget', label: 'Budjetti', icon: PiggyBank, hideFor: ['company', 'private', 'housing-company'] },
   { view: 'journal', label: 'Päiväkirja', icon: BookOpen, hideFor: ['personal'] },
   { view: 'accounts', label: 'Tilikartta', icon: ListTree, hideFor: ['personal'] },
