@@ -1,21 +1,7 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, lazy, Suspense } from 'react';
 import { Loader2 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import Dashboard from '@/components/Dashboard';
-import Journal from '@/components/Journal';
-import ChartOfAccounts from '@/components/ChartOfAccounts';
-import Reports from '@/components/Reports';
-import Banking from '@/components/Banking';
-import SettingsPage from '@/components/SettingsPage';
-import Guides from '@/components/Guides';
-import EntrepreneurGuide from '@/components/EntrepreneurGuide';
-import TaxCalculator from '@/components/TaxCalculator';
-import MonthlyChecklist from '@/components/MonthlyChecklist';
-import CashFlowForecast from '@/components/CashFlowForecast';
-import YELCalculator from '@/components/YELCalculator';
-import RealEstateInvestor from '@/components/RealEstateInvestor';
-import Invoicing from '@/components/Invoicing';
-import RecurringEntries from '@/components/RecurringEntries';
 import OnboardingTour from '@/components/OnboardingTour';
 import { Onboarding } from '@/components/Onboarding';
 import SmartHelp from '@/components/SmartHelp';
@@ -25,6 +11,30 @@ import { useStore } from '@/hooks/useStore';
 import type { Entry, View } from '@/types';
 import { format, parseISO } from 'date-fns';
 import { fi } from 'date-fns/locale';
+
+// Lazy-loaded route components
+const Journal = lazy(() => import('@/components/Journal'));
+const ChartOfAccounts = lazy(() => import('@/components/ChartOfAccounts'));
+const Reports = lazy(() => import('@/components/Reports'));
+const SettingsPage = lazy(() => import('@/components/SettingsPage'));
+const Guides = lazy(() => import('@/components/Guides'));
+const EntrepreneurGuide = lazy(() => import('@/components/EntrepreneurGuide'));
+const TaxCalculator = lazy(() => import('@/components/TaxCalculator'));
+const MonthlyChecklist = lazy(() => import('@/components/MonthlyChecklist'));
+const CashFlowForecast = lazy(() => import('@/components/CashFlowForecast'));
+const YELCalculator = lazy(() => import('@/components/YELCalculator'));
+const RealEstateInvestor = lazy(() => import('@/components/RealEstateInvestor'));
+const Invoicing = lazy(() => import('@/components/Invoicing'));
+const RecurringEntries = lazy(() => import('@/components/RecurringEntries'));
+const Banking = lazy(() => import('@/components/Banking'));
+
+function PageLoader() {
+  return (
+    <div className="flex-1 flex items-center justify-center">
+      <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+    </div>
+  );
+}
 
 export function MainApp() {
   const { user, logout } = useAuth();
@@ -106,62 +116,106 @@ export function MainApp() {
         )}
 
         {store.view === 'journal' && (
-          <Journal
-            entries={store.entries}
-            accounts={store.accounts}
-            onNewEntry={handleNewEntry}
-            onEditEntry={handleEditEntry}
-            onDeleteEntry={store.removeEntry}
-          />
+          <Suspense fallback={<PageLoader />}>
+            <Journal
+              entries={store.entries}
+              accounts={store.accounts}
+              onNewEntry={handleNewEntry}
+              onEditEntry={handleEditEntry}
+              onDeleteEntry={store.removeEntry}
+            />
+          </Suspense>
         )}
 
         {store.view === 'accounts' && (
-          <ChartOfAccounts
-            accounts={store.accounts}
-            onAddAccount={store.addAccount}
-            onDeleteAccount={store.removeAccount}
-            accountBalance={store.accountBalance}
-          />
+          <Suspense fallback={<PageLoader />}>
+            <ChartOfAccounts
+              accounts={store.accounts}
+              onAddAccount={store.addAccount}
+              onDeleteAccount={store.removeAccount}
+              accountBalance={store.accountBalance}
+            />
+          </Suspense>
         )}
 
         {store.view === 'reports' && (
-          <Reports
-            entries={store.entries}
-            accounts={store.accounts}
-            accountBalance={store.accountBalance}
-            totalVatPayable={store.totalVatPayable}
-            totalVatDeductible={store.totalVatDeductible}
-          />
+          <Suspense fallback={<PageLoader />}>
+            <Reports
+              entries={store.entries}
+              accounts={store.accounts}
+              accountBalance={store.accountBalance}
+              totalVatPayable={store.totalVatPayable}
+              totalVatDeductible={store.totalVatDeductible}
+            />
+          </Suspense>
         )}
 
-        {store.view === 'banking' && <Banking accounts={store.accounts} />}
+        {store.view === 'banking' && (
+          <Suspense fallback={<PageLoader />}>
+            <Banking accounts={store.accounts} />
+          </Suspense>
+        )}
 
         {store.view === 'settings' && (
-          <SettingsPage
-            company={store.company}
-            onUpdateCompany={store.updateCompany}
-            onReload={store.loadData}
-          />
+          <Suspense fallback={<PageLoader />}>
+            <SettingsPage
+              company={store.company}
+              onUpdateCompany={store.updateCompany}
+              onReload={store.loadData}
+            />
+          </Suspense>
         )}
 
-        {store.view === 'guides' && <Guides />}
-        {store.view === 'entrepreneur' && <EntrepreneurGuide />}
-        {store.view === 'taxcalc' && <TaxCalculator />}
-        {store.view === 'checklist' && <MonthlyChecklist />}
-        {store.view === 'cashflow' && <CashFlowForecast />}
-        {store.view === 'yel' && <YELCalculator />}
-        {store.view === 'realestate' && <RealEstateInvestor />}
+        {store.view === 'guides' && (
+          <Suspense fallback={<PageLoader />}>
+            <Guides />
+          </Suspense>
+        )}
+        {store.view === 'entrepreneur' && (
+          <Suspense fallback={<PageLoader />}>
+            <EntrepreneurGuide />
+          </Suspense>
+        )}
+        {store.view === 'taxcalc' && (
+          <Suspense fallback={<PageLoader />}>
+            <TaxCalculator />
+          </Suspense>
+        )}
+        {store.view === 'checklist' && (
+          <Suspense fallback={<PageLoader />}>
+            <MonthlyChecklist />
+          </Suspense>
+        )}
+        {store.view === 'cashflow' && (
+          <Suspense fallback={<PageLoader />}>
+            <CashFlowForecast />
+          </Suspense>
+        )}
+        {store.view === 'yel' && (
+          <Suspense fallback={<PageLoader />}>
+            <YELCalculator />
+          </Suspense>
+        )}
+        {store.view === 'realestate' && (
+          <Suspense fallback={<PageLoader />}>
+            <RealEstateInvestor />
+          </Suspense>
+        )}
         {store.view === 'invoicing' && (
-          <Invoicing
-            companyName={store.company?.name || ''}
-            companyYTunnus={store.company?.yTunnus || ''}
-            companyAddress={`${store.company?.address || ''}, ${store.company?.postalCode || ''} ${store.company?.city || ''}`}
-            accounts={store.accounts}
-            onCreateEntry={store.addEntry}
-          />
+          <Suspense fallback={<PageLoader />}>
+            <Invoicing
+              companyName={store.company?.name || ''}
+              companyYTunnus={store.company?.yTunnus || ''}
+              companyAddress={`${store.company?.address || ''}, ${store.company?.postalCode || ''} ${store.company?.city || ''}`}
+              accounts={store.accounts}
+              onCreateEntry={store.addEntry}
+            />
+          </Suspense>
         )}
         {store.view === 'recurring' && (
-          <RecurringEntries accounts={store.accounts} onGenerateEntry={store.addEntry} />
+          <Suspense fallback={<PageLoader />}>
+            <RecurringEntries accounts={store.accounts} onGenerateEntry={store.addEntry} />
+          </Suspense>
         )}
       </main>
 
