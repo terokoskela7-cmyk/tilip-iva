@@ -135,11 +135,11 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
   sivutulo: ['sivutulo', 'sivu', 'freelance', 'konsultti', 'vuokratulo', 'vuokra', 'osinko', 'hyvitys', 'korvaus', 'tuki', 'etu', 'palkkio', 'kela', 'asumistuki', 'työmarkkinatuki', 'opintotuki', 'eläke'],
   myynti: ['myynti', 'myy', 'myydy', 'kauppa', 'myyntituotto', 'myyty', 'myyjä', 'kauppapaikka', 'toro', 'huuto', 'fb marketplace', 'tori.fi'],
   ruoka: ['ruoka', 'prisma', 'k-market', 's-market', 'alepa', 'sale', 'lidl', 'stockmann', 'citymarket', 'kärkkäinen', 'food', 'sushi', 'pizza', 'ravintola', 'kahvila', 'kahvi', 'ruokakauppa', 'supermarket', 'market', 'ruokatori', 'hok elanto', 'siwa', 'valintatalo', 'makuuni', 'k-supermarket', 'minimani', 'mestarin herkku', 'anttila', 'foodora', 'wolt', 'kebab', 'burger', 'mcdonalds', 'hesburger', 'subway', 'domino', 'pizza-online', 'kotipizza', 'koti pizza'],
-  asuminen: ['asuminen', 'vuokra', 'hoitovastike', 'vastike', 'sähkö', 'vesi', 'lämmitys', 'kiinteistö', 'asunto', 'dna', 'elisa', 'tel', 'nett', 'kiinteistöhuolto', 'isännöinti', 'remontti', 'putki', 'sähkömies', 'taloyhtiö', 'kunnossapito', 'kotivakuutus', 'asuntolaina', 'korko', 'lyhennys', 'yhtiövastike', 'vesimaksu', 'lämmitysöljy', 'ao performance', 'fascia', 'eero karhumäki', 'öhgren', 'kiinteistö', 'huoneistossa'],
+  asuminen: ['asuminen', 'vuokra', 'hoitovastike', 'vastike', 'sähkö', 'vesi', 'lämmitys', 'kiinteistö', 'asunto', 'dna', 'elisa', 'tel', 'nett', 'kiinteistöhuolto', 'isännöinti', 'remontti', 'putki', 'sähkömies', 'taloyhtiö', 'kunnossapito', 'kotivakuutus', 'asuntolaina', 'korko', 'lyhennys', 'yhtiövastike', 'vesimaksu', 'lämmitysöljy', 'ao performance', 'fascia', 'eero karhumäki', 'eero karhumaki', 'masku', 'maskun kalustetalo', 'kaluste', 'huonekalu', 'sisustus', 'öhgren', 'kiinteistö', 'huoneistossa'],
   liikenne: ['liikenne', 'bussi', 'juna', 'metro', 'taksi', 'uber', 'bolt', 'polttoaine', 'bensa', 'diesel', 'auto', 'rengas', 'huolto', 'katsastus', 'pysäköinti', 'vr', ' hsl', 'matkakortti', 'neste', 'teboil', 'shell', 'abc', 'huoltoasema', 'moottoripyörä', 'skootteri', 'pysäköinti', 'autopesu'],
   viihde: ['viihde', 'elokuva', 'konsertti', 'teatteri', 'spotify', 'netflix', 'hbo', 'disney', 'youtube', 'peli', 'ravintola', 'baari', 'pub', 'olut', 'viini', 'harrastus', 'keilaus', 'casino', 'bailut', 'yökerho', 'karaoke', 'tapahtuma', 'festivaali', 'musiikki', 'elisa viihde', 'c more'],
   terveys: ['terveys', 'apteekki', 'lääkäri', 'hammas', 'sairaala', 'kela', 'vakuutus', 'terveydenhuolto', 'fysioterapia', 'psykologi', 'optikko', 'mehiläinen', 'terveystalo', 'pihlajalinna', 'lääke', 'resepti', 'työterveys', 'sairaala', 'erikoislääkäri', 'terveyskeskus'],
-  vaatteet: ['vaatteet', 'vaate', 'kenkä', 'h&m', 'zalando', 'cubus', 'dressmann', 'gina', 'tokmanni', 'asko', 'ikea', 'sisustus', 'huonekalu', 'muoti', 'vaatekauppa', 'urheilukauppa', 'intersport', 'xxl', 'stadium', 'halonen', 'kappahl', 'lc waikiki', 'gigantti'],
+  vaatteet: ['vaatteet', 'vaate', 'kenkä', 'h&m', 'zalando', 'cubus', 'dressmann', 'gina', 'tokmanni', 'asko', 'sisustus', 'muoti', 'vaatekauppa', 'urheilukauppa', 'intersport', 'xxl', 'stadium', 'halonen', 'kappahl', 'lc waikiki', 'gigantti'],
   koulutus: ['koulutus', 'kirja', 'opiskelu', 'kurssi', 'koulu', 'yliopisto', 'kirjasto', 'sanoma', 'tietokirja', 'lukio', 'ammattikoulu', 'opinto', 'luent', 'oppikirja', 'suomen kielen', 'kielikoulu', 'valmennus', 'tutkinto', 'akateeminen'],
   children: ['lapsi', 'lasten', 'päiväkoti', 'koulu', 'kerho', 'vaippa', 'lelu', 'lastenvaunut', 'vauva', 'taaper', 'kummi', 'lastenhoito', 'nuoriso', 'harrastusmaksu', 'urheilukoulu', 'muskari', 'kerhomaksu', 'kerhotoiminta'],
   travel: ['matka', 'lento', 'hotelli', 'juna', 'risteily', 'vuokra-auto', 'lomamatka', 'matkavakuutus', 'bussi', 'rautatie', 'ryanair', 'finnair', 'norwegian', 'booking', 'airbnb', 'hostelli', 'turisti', 'matkalippu', 'viking line', 'tallink', 'silja', 'eckerö', 'wasaline', 'hotels.com'],
@@ -714,7 +714,11 @@ export default function PersonalFinance({
                         {row.amount > 0 ? '+' : ''}{row.amount.toFixed(2)} €
                       </td>
                       <td className="px-3 py-2">
-                        <CategorySelect value={row.category} onChange={(v) => updatePreviewCategory(row.id, v)} />
+                        <CategorySelect
+                          key={`cat-${row.id}-${row.category}`}
+                          value={row.category}
+                          onChange={(v) => updatePreviewCategory(row.id, v)}
+                        />
                       </td>
                     </tr>
                   ))}
