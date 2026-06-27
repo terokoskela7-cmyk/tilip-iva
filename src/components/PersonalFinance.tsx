@@ -9,7 +9,10 @@ import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
@@ -127,21 +130,96 @@ const incomeCategories = [
 
 const allCategories = [...incomeCategories, ...expenseCategories];
 
+const KNOWN_PAYEES: Record<string, string> = {
+  'elisa': 'asuminen',
+  'elisa oyj': 'asuminen',
+  'dna': 'asuminen',
+  'telia': 'asuminen',
+  'telia finland': 'asuminen',
+  'fortum': 'asuminen',
+  'helen': 'asuminen',
+  'switch nordic green': 'asuminen',
+  'vaasan sähkö': 'asuminen',
+  'vaasan sähköverkko': 'asuminen',
+  'vaasan sahko': 'asuminen',
+  'jakobstadsnejdens telefon': 'asuminen',
+  'pietarsaaren seudun puhelin': 'asuminen',
+  'vuokra': 'asuminen',
+  'hoitovastike': 'asuminen',
+  'yhtiövastike': 'asuminen',
+  'asunto-oy aarnotalo': 'asuminen',
+  'aarnotalo': 'asuminen',
+  'retta isännöinti': 'asuminen',
+  'isännöinti': 'asuminen',
+  'cityvarasto': 'asuminen',
+  'eero karhumäki': 'asuminen',
+  'eero karhumaki': 'asuminen',
+  'mehiläinen': 'terveys',
+  'terveystalo': 'terveys',
+  'pihlajalinna': 'terveys',
+  'apteekki': 'terveys',
+  'lääkäri': 'terveys',
+  'fysioterapia': 'terveys',
+  'if vakuutus': 'insurance',
+  'lähitapiola': 'insurance',
+  'lähitapiola keskinäinen': 'insurance',
+  'lähivakuutus': 'insurance',
+  'pohjola': 'insurance',
+  'fennia': 'insurance',
+  'vr ': 'liikenne',
+  ' hsl': 'liikenne',
+  'hsl ': 'liikenne',
+  'matkahuolto': 'liikenne',
+  'k-supermarket': 'ruoka',
+  's-market': 'ruoka',
+  'prisma': 'ruoka',
+  'lidl': 'ruoka',
+  'alepa': 'ruoka',
+  'sale': 'ruoka',
+  'k-citymarket': 'ruoka',
+  'k-market': 'ruoka',
+  'halpa-halli': 'ruoka',
+  'minimani': 'ruoka',
+  'booking.com': 'travel',
+  'airbnb': 'travel',
+  'viking line': 'travel',
+  'vikingline': 'travel',
+  'vikingline.fi': 'travel',
+  'palkka': 'palkka',
+  'suomen palloliitto': 'palkka',
+  'nordnet': 'sivutulo',
+  's-pankki varainhoito': 'sivutulo',
+  'lunastus': 'sivutulo',
+  'kela ': 'sivutulo',
+  'eläke': 'sivutulo',
+  'bafa fit': 'hobbies',
+  'fit wasa': 'hobbies',
+  'vaasan erotuomarikerho': 'hobbies',
+  'jyväskylän kesäyliopisto': 'koulutus',
+  'ao performance': 'koulutus',
+  'öhgren': 'koulutus',
+  'asiantuntijat ja esihenkilöt': 'koulutus',
+  'suomen valmentajat': 'koulutus',
+  'helsingin kaupunki': 'bills',
+  'vaasan kaupunki': 'bills',
+  'klarna': 'vaatteet',
+};
+
 const CATEGORY_KEYWORDS: Record<string, string[]> = {
   palkka: ['palkka', 'salary', 'palkkio', 'korvaus', 'palkkaus', 'wage', 'payroll', 'tulotili', 'tilit', 'palkkatulo', 'palkkaerä'],
-  sivutulo: ['sivutulo', 'sivu', 'freelance', 'konsultti', 'vuokratulo', 'vuokra', 'osinko', 'hyvitys', 'korvaus', 'tuki', 'etu', 'palkkio', 'kela', 'asumistuki', 'työmarkkinatuki', 'opintotuki', 'eläke'],
+  sivutulo: ['sivutulo', 'freelance', 'konsultti', 'vuokratulo', 'osinko', 'hyvitys', 'tuki', 'etu', 'asumistuki', 'työmarkkinatuki', 'opintotuki', 'eläke'],
   myynti: ['myynti', 'myy', 'myydy', 'kauppa', 'myyntituotto', 'myyty', 'myyjä', 'kauppapaikka', 'toro', 'huuto', 'fb marketplace', 'tori.fi'],
   ruoka: ['ruoka', 'prisma', 'k-market', 's-market', 'alepa', 'sale', 'lidl', 'stockmann', 'citymarket', 'kärkkäinen', 'food', 'sushi', 'pizza', 'ravintola', 'kahvila', 'kahvi', 'ruokakauppa', 'supermarket', 'market', 'ruokatori', 'hok elanto', 'siwa', 'valintatalo', 'makuuni', 'k-supermarket', 'minimani', 'mestarin herkku', 'anttila', 'foodora', 'wolt', 'kebab', 'burger', 'mcdonalds', 'hesburger', 'subway', 'domino', 'pizza-online', 'kotipizza', 'koti pizza'],
-  asuminen: ['asuminen', 'vuokra', 'hoitovastike', 'vastike', 'sähkö', 'vesi', 'lämmitys', 'kiinteistö', 'asunto', 'dna', 'elisa', 'tel', 'nett', 'kiinteistöhuolto', 'isännöinti', 'remontti', 'putki', 'sähkömies', 'taloyhtiö', 'kunnossapito', 'kotivakuutus', 'asuntolaina', 'korko', 'lyhennys', 'yhtiövastike', 'vesimaksu', 'lämmitysöljy', 'ao performance', 'fascia', 'eero karhumäki', 'eero karhumaki', 'masku', 'maskun kalustetalo', 'kaluste', 'huonekalu', 'sisustus', 'öhgren', 'kiinteistö', 'huoneistossa'],
-  liikenne: ['liikenne', 'bussi', 'juna', 'metro', 'taksi', 'uber', 'bolt', 'polttoaine', 'bensa', 'diesel', 'auto', 'rengas', 'huolto', 'katsastus', 'pysäköinti', 'vr', ' hsl', 'matkakortti', 'neste', 'teboil', 'shell', 'abc', 'huoltoasema', 'moottoripyörä', 'skootteri', 'pysäköinti', 'autopesu'],
+  asuminen: ['asuminen', 'vuokra', 'hoitovastike', 'vastike', 'sähkö', 'sähköverkko', 'sahkonordic green', 'switch', 'vesi', 'lämmitys', 'kiinteistö', 'asunto', 'dna', 'elisa', 'tel', 'puhelin', 'telefon', 'nett', 'kiinteistöhuolto', 'isännöinti', 'remontti', 'putki', 'sähkömies', 'taloyhtiö', 'kunnossapito', 'kotivakuutus', 'asuntolaina', 'korko', 'lyhennys', 'yhtiövastike', 'vesimaksu', 'lämmitysöljy', 'eero karhumäki', 'eero karhumaki', 'masku', 'maskun kalustetalo', 'kaluste', 'huonekalu', 'sisustus', 'öhgren', 'kiinteistö', 'huoneistossa'],
+  liikenne: ['liikenne', 'bussi', 'juna', 'metro', 'taksi', 'uber', 'bolt', 'polttoaine', 'bensa', 'diesel', 'auto', 'rengas', 'huolto', 'katsastus', 'a-katsastus', 'pysäköinti', 'vr', ' hsl', 'matkakortti', 'neste', 'teboil', 'shell', 'abc', 'huoltoasema', 'moottoripyörä', 'skootteri', 'autopesu'],
   viihde: ['viihde', 'elokuva', 'konsertti', 'teatteri', 'spotify', 'netflix', 'hbo', 'disney', 'youtube', 'peli', 'ravintola', 'baari', 'pub', 'olut', 'viini', 'harrastus', 'keilaus', 'casino', 'bailut', 'yökerho', 'karaoke', 'tapahtuma', 'festivaali', 'musiikki', 'elisa viihde', 'c more'],
   terveys: ['terveys', 'apteekki', 'lääkäri', 'hammas', 'sairaala', 'kela', 'vakuutus', 'terveydenhuolto', 'fysioterapia', 'psykologi', 'optikko', 'mehiläinen', 'terveystalo', 'pihlajalinna', 'lääke', 'resepti', 'työterveys', 'sairaala', 'erikoislääkäri', 'terveyskeskus'],
   vaatteet: ['vaatteet', 'vaate', 'kenkä', 'h&m', 'zalando', 'cubus', 'dressmann', 'gina', 'tokmanni', 'asko', 'sisustus', 'muoti', 'vaatekauppa', 'urheilukauppa', 'intersport', 'xxl', 'stadium', 'halonen', 'kappahl', 'lc waikiki', 'gigantti'],
-  koulutus: ['koulutus', 'kirja', 'opiskelu', 'kurssi', 'koulu', 'yliopisto', 'kirjasto', 'sanoma', 'tietokirja', 'lukio', 'ammattikoulu', 'opinto', 'luent', 'oppikirja', 'suomen kielen', 'kielikoulu', 'valmennus', 'tutkinto', 'akateeminen'],
+  koulutus: ['koulutus', 'koulutukseen', 'kesäyliopisto', 'kirja', 'opiskelu', 'kurssi', 'koulu', 'yliopisto', 'kirjasto', 'sanoma', 'tietokirja', 'lukio', 'ammattikoulu', 'opinto', 'luent', 'oppikirja', 'suomen kielen', 'kielikoulu', 'valmennus', 'tutkinto', 'akateeminen', 'fascia mastery', 'esihenkilö', 'valmentaja', 'fascia'],
   children: ['lapsi', 'lasten', 'päiväkoti', 'koulu', 'kerho', 'vaippa', 'lelu', 'lastenvaunut', 'vauva', 'taaper', 'kummi', 'lastenhoito', 'nuoriso', 'harrastusmaksu', 'urheilukoulu', 'muskari', 'kerhomaksu', 'kerhotoiminta'],
-  travel: ['matka', 'lento', 'hotelli', 'juna', 'risteily', 'vuokra-auto', 'lomamatka', 'matkavakuutus', 'bussi', 'rautatie', 'ryanair', 'finnair', 'norwegian', 'booking', 'airbnb', 'hostelli', 'turisti', 'matkalippu', 'viking line', 'tallink', 'silja', 'eckerö', 'wasaline', 'hotels.com'],
+  travel: ['matka', 'lento', 'hotelli', 'juna', 'risteily', 'vuokra-auto', 'lomamatka', 'matkavakuutus', 'bussi', 'rautatie', 'ryanair', 'finnair', 'norwegian', 'booking', 'airbnb', 'hostelli', 'turisti', 'matkalippu', 'viking line', 'vikingline', 'vikingline.fi', 'tallink', 'silja', 'eckerö', 'wasaline', 'hotels.com'],
   insurance: ['vakuutus', 'vakuutusmaksu', 'if ', 'lähivakuutus', 'pohjola', 'fennia', 'tapiola', 'turva', 'eläkevakuutus', 'henkivakuutus', 'kasko', 'liikennevakuutus', 'kotivakuutus', 'tapaturmavakuutus', 'lähitapiola', 'if vakuutus'],
-  hobbies: ['harrastus', 'liikunta', 'kuntosali', 'urheilu', 'golf', 'tennis', 'jalkapallo', 'jääkiekko', 'salibandy', 'uinti', 'hiihto', 'pyöräily', 'kalastus', 'metsästys', 'käsityö', 'tanssi', 'musiikki', 'soitto', 'kuoro', 'partio', 'gym', 'fitness', 'crossfit', 'frisbeegolf'],
+  hobbies: ['harrastus', 'liikunta', 'kuntosali', 'urheilu', 'golf', 'tennis', 'jalkapallo', 'jääkiekko', 'salibandy', 'uinti', 'hiihto', 'pyöräily', 'kalastus', 'metsästys', 'käsityö', 'tanssi', 'musiikki', 'soitto', 'kuoro', 'partio', 'gym', 'fitness', 'crossfit', 'frisbeegolf', 'erotuomari', 'pelipassi', 'urheilukoulu', 'valmentaja'],
   bills: ['lasku', 'maksu', 'suoraveloitus', 'e-lasku', 'laskutus', 'perintä', 'sähkölasku', 'puhelinlasku', 'nettilasku', 'jätehuolto', 'vesilasku', 'kaupungin', 'kunnallisvero', 'jäsenmaksu', 'tilausmaksu', 'käyttömaksu', 'perintätoimisto', 'traficom'],
   muut: ['lahjoitus', 'jäsenmaksu', 'maksu', 'kulu', 'muu', 'pankkikulu', 'kulut', 'nosto', 'siirto', 'palkki', 'provisio', 'varaus'],
 };
@@ -199,12 +277,44 @@ function autoCategorize(
   }
 
   const combinedText = `${description} ${message}`.toLowerCase();
+  const typeLower = txType.toLowerCase();
 
-  const housingTypes = ['korko', 'lyhennys', 'hoitovastike', 'yhtiövastike', 'asuntolaina', 'laina'];
-  if (housingTypes.some((h) => txType.toLowerCase().includes(h) || combinedText.includes(h))) {
+  // txType overrides
+  if (typeLower.includes('palkka')) {
+    return { category: 'palkka', type: 'income', confidence: 'high', skip: false };
+  }
+  if (typeLower.includes('korko') || typeLower.includes('lyhennys')) {
     return { category: 'asuminen', type: 'expense', confidence: 'high', skip: false };
   }
+  if (typeLower.includes('siirto rahastoon')) {
+    return { category: 'muut', type: 'expense', confidence: 'high', skip: true };
+  }
+  if (typeLower.includes('korttioston korjaus')) {
+    return { category: 'muut', type: 'income', confidence: 'medium', skip: false };
+  }
+  if (typeLower.includes('e-lasku') && combinedText.includes('s-pankki')) {
+    return { category: 'muut', type: 'expense', confidence: 'high', skip: true };
+  }
+  if (typeLower.includes('tilisiirto') && combinedText.includes('paytrail')) {
+    if (combinedText.includes('viking line')) return { category: 'travel', type: 'expense', confidence: 'high', skip: false };
+    if (combinedText.includes('a-katsastus')) return { category: 'liikenne', type: 'expense', confidence: 'high', skip: false };
+    if (combinedText.includes('pelipaikka') || combinedText.includes('pelipassi')) return { category: 'hobbies', type: 'expense', confidence: 'high', skip: false };
+  }
 
+  // 1. Known payees
+  for (const [payee, cat] of Object.entries(KNOWN_PAYEES)) {
+    if (combinedText.includes(payee.toLowerCase())) {
+      const isIncome = incomeCategories.some((c) => c.id === cat);
+      return { category: cat, type: isIncome ? 'income' : 'expense', confidence: 'high', skip: false };
+    }
+  }
+
+  // 2. Large positive amount → salary
+  if (amount > 500) {
+    return { category: 'palkka', type: 'income', confidence: 'medium', skip: false };
+  }
+
+  // 3. Keyword matching
   for (const [cat, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
     if (!incomeCategories.some((c) => c.id === cat)) continue;
     if (keywords.some((k) => combinedText.includes(k))) {
@@ -333,37 +443,39 @@ function parseCsv(text: string): CsvRow[] {
 function CategorySelect({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   const selected = allCategories.find((c) => c.id === value);
   return (
-    <div className="flex items-center gap-2">
-      {selected && (
-        <span
-          className="text-xs px-2 py-1 rounded-full font-medium border whitespace-nowrap"
-          style={{
-            backgroundColor: selected.color + '15',
-            color: selected.color,
-            borderColor: selected.color + '30',
-          }}
-        >
-          {selected.name}
-        </span>
-      )}
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="text-xs h-7 px-2 border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
-        style={{ minWidth: '100px' }}
-      >
-        <optgroup label="Tulot">
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger className="w-auto min-w-[120px] h-8 text-xs border-gray-200">
+        <div className="flex items-center gap-2">
+          {selected && <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: selected.color }} />}
+          <span className="truncate">{selected?.name || value}</span>
+        </div>
+      </SelectTrigger>
+      <SelectContent className="max-h-72">
+        <SelectGroup>
+          <SelectLabel className="text-xs font-semibold text-gray-400 uppercase">Tulot</SelectLabel>
           {incomeCategories.map((cat) => (
-            <option key={cat.id} value={cat.id}>{cat.name}</option>
+            <SelectItem key={cat.id} value={cat.id} className="text-xs">
+              <span className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
+                {cat.name}
+              </span>
+            </SelectItem>
           ))}
-        </optgroup>
-        <optgroup label="Menot">
+        </SelectGroup>
+        <SelectSeparator />
+        <SelectGroup>
+          <SelectLabel className="text-xs font-semibold text-gray-400 uppercase">Menot</SelectLabel>
           {expenseCategories.map((cat) => (
-            <option key={cat.id} value={cat.id}>{cat.name}</option>
+            <SelectItem key={cat.id} value={cat.id} className="text-xs">
+              <span className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
+                {cat.name}
+              </span>
+            </SelectItem>
           ))}
-        </optgroup>
-      </select>
-    </div>
+        </SelectGroup>
+      </SelectContent>
+    </Select>
   );
 }
 
