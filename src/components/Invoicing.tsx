@@ -264,7 +264,7 @@ export default function Invoicing({ companyName, companyYTunnus, companyAddress,
           <div className="max-w-4xl mx-auto space-y-2">
             {invoices.length === 0 && (
               <div className="text-center py-12 text-gray-500">
-                <Receipt className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                <Receipt className="w-12 h-12 mx-auto mb-3 text-gray-500" />
                 <p>Ei laskuja. Luo ensimmäinen lasku!</p>
               </div>
             )}
@@ -315,7 +315,7 @@ export default function Invoicing({ companyName, companyYTunnus, companyAddress,
                   <div>
                     <p className="font-medium text-gray-900">{c.name}</p>
                     <p className="text-xs text-gray-500">{c.address}, {c.postalCode} {c.city}</p>
-                    <p className="text-xs text-gray-400">Maksuehto: {c.paymentTerm} pv</p>
+                    <p className="text-xs text-gray-500">Maksuehto: {c.paymentTerm} pv</p>
                   </div>
                   <Button variant="ghost" size="sm" onClick={() => { deleteCustomer(c.id); loadData(); }} aria-label="Poista asiakas">
                     <Trash2 className="w-4 h-4 text-red-500" />

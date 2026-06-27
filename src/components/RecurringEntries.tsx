@@ -141,7 +141,7 @@ export default function RecurringEntries({ accounts, onGenerateEntry }: Recurrin
       <div className="flex-1 overflow-y-auto p-4">
         {recurring.length === 0 && (
           <div className="text-center py-12 text-gray-500">
-            <Repeat className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+            <Repeat className="w-12 h-12 mx-auto mb-3 text-gray-500" />
             <p className="text-lg font-medium">Ei toistuvia kirjauksia</p>
             <p className="text-sm">Luo pohja automaattisille vienneille.</p>
             <Button onClick={openNew} variant="outline" className="mt-3">

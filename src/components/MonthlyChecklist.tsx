@@ -104,8 +104,8 @@ export default function MonthlyChecklist() {
                 checked[task.id] ? 'bg-green-50 hover:bg-green-100' : 'hover:bg-gray-50'
               }`}
             >
-              {checked[task.id] ? <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0" /> : <Circle className="w-5 h-5 text-gray-300 flex-shrink-0" />}
-              <span className={`flex-1 text-sm ${checked[task.id] ? 'text-gray-400 line-through' : 'text-gray-700'}`}>{task.text}</span>
+              {checked[task.id] ? <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0" /> : <Circle className="w-5 h-5 text-gray-500 flex-shrink-0" />}
+              <span className={`flex-1 text-sm ${checked[task.id] ? 'text-gray-500 line-through' : 'text-gray-700'}`}>{task.text}</span>
               <Badge className={`text-xs ${categoryLabels[task.category].color}`}>{categoryLabels[task.category].label}</Badge>
               {task.critical && <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />}
             </button>

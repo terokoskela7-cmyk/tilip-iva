@@ -59,7 +59,7 @@ export default function Journal({ entries, accounts, onNewEntry, onEditEntry, on
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-2">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
             <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Hae..." className="pl-9 text-sm" />
           </div>
           <div className="flex gap-2">
@@ -107,7 +107,7 @@ export default function Journal({ entries, accounts, onNewEntry, onEditEntry, on
                     <span>{l.debit > 0 ? `D ${formatMoney(l.debit)}` : `K ${formatMoney(l.credit)}`}</span>
                   </div>
                 ))}
-                {e.lines.length > 3 && <p className="text-xs text-gray-400">+{e.lines.length - 3} riviä</p>}
+                {e.lines.length > 3 && <p className="text-xs text-gray-500">+{e.lines.length - 3} riviä</p>}
               </div>
             </button>
           ))}

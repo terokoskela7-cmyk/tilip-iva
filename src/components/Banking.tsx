@@ -461,7 +461,7 @@ export default function Banking({ accounts }: BankingProps) {
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); handleDeleteAccount(a.id); }}
-                      className="text-gray-400 hover:text-red-600"
+                      className="text-gray-500 hover:text-red-600"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -501,7 +501,7 @@ export default function Banking({ accounts }: BankingProps) {
                   isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-gray-50'
                 }`}
               >
-                <Upload className="w-6 h-6 text-gray-400 mx-auto mb-2" />
+                <Upload className="w-6 h-6 text-gray-500 mx-auto mb-2" />
                 <p className="text-xs text-gray-600 mb-2">Raahaa CSV tähän tai</p>
                 <Input type="file" accept=".csv,text/csv" onChange={handleFileSelect} className="text-xs" />
               </div>
@@ -532,7 +532,7 @@ export default function Banking({ accounts }: BankingProps) {
             <CardContent className="space-y-2">
               {filteredTransactions.length === 0 ? (
                 <div className="text-center py-12 text-gray-500">
-                  <FileText className="w-10 h-10 mx-auto mb-2 text-gray-300" />
+                  <FileText className="w-10 h-10 mx-auto mb-2 text-gray-500" />
                   <p>Ei tapahtumia valitulla tilillä.</p>
                 </div>
               ) : (

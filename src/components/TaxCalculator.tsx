@@ -70,7 +70,7 @@ export default function TaxCalculator() {
                     <div key={item.label}>
                       <div className="flex items-center justify-between mb-1">
                         <label className="text-sm text-gray-700 flex items-center gap-2">
-                          <Icon className="w-4 h-4 text-gray-400" /> {item.label}
+                          <Icon className="w-4 h-4 text-gray-500" /> {item.label}
                           {item.maxPercent < 100 && <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">{item.maxPercent}% vähennys</span>}
                         </label>
                         <span className="text-sm font-medium text-gray-900">{deductible.toLocaleString('fi-FI')} €</span>
@@ -81,7 +81,7 @@ export default function TaxCalculator() {
                         onChange={(e) => updateItem(i, Number(e.target.value))}
                         className="w-full"
                       />
-                      <div className="flex justify-between text-xs text-gray-400">
+                      <div className="flex justify-between text-xs text-gray-500">
                         <span>0 €</span>
                         <span>{item.value.toLocaleString('fi-FI')} € (kulu)</span>
                       </div>

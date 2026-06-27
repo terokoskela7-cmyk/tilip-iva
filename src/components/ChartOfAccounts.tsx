@@ -94,7 +94,7 @@ export default function ChartOfAccounts({ accounts, onAddAccount, onDeleteAccoun
           </Button>
         </div>
         <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
           <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Hae tileistä..." className="pl-9 text-sm" />
         </div>
       </div>

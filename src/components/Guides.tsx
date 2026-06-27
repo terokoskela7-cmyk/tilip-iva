@@ -57,7 +57,7 @@ export default function Guides() {
           Valitse tilanne alla, niin opastamme askel askeleelta miten kirjataan.
         </p>
         <div className="relative max-w-md mb-3">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
           <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Hae ohjeista..." className="pl-9 text-sm" />
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -97,10 +97,10 @@ export default function Guides() {
                         <Badge variant="outline" className="text-xs">
                           {categoryLabels[guide.category]}
                         </Badge>
-                        <span className="text-xs text-gray-400">{guide.steps.length} vaihetta</span>
+                        <span className="text-xs text-gray-500">{guide.steps.length} vaihetta</span>
                       </div>
                     </div>
-                    <ChevronRight className="w-5 h-5 text-gray-300 flex-shrink-0 mt-1" />
+                    <ChevronRight className="w-5 h-5 text-gray-500 flex-shrink-0 mt-1" />
                   </div>
                 </CardContent>
               </Card>
@@ -110,7 +110,7 @@ export default function Guides() {
 
         {filtered.length === 0 && (
           <div className="text-center py-12 text-gray-500">
-            <Lightbulb className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+            <Lightbulb className="w-8 h-8 mx-auto mb-2 text-gray-500" />
             <p>Ei ohjeita hakuehdoilla</p>
           </div>
         )}

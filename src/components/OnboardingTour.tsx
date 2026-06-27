@@ -92,7 +92,7 @@ export default function OnboardingTour({ onNavigate }: OnboardingTourProps) {
         <CardContent className="p-6 relative">
           <button
             onClick={handleClose}
-            className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-colors"
+            className="absolute top-3 right-3 text-gray-500 hover:text-gray-600 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -145,7 +145,7 @@ export default function OnboardingTour({ onNavigate }: OnboardingTourProps) {
           {!isLast && (
             <button
               onClick={handleClose}
-              className="w-full text-center text-xs text-gray-400 hover:text-gray-600 mt-3 transition-colors"
+              className="w-full text-center text-xs text-gray-500 hover:text-gray-600 mt-3 transition-colors"
             >
               Ohita opastus
             </button>

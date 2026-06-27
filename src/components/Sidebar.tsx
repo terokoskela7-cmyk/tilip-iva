@@ -119,10 +119,10 @@ export default function Sidebar({ view, onViewChange, companyName, yTunnus, last
         </div>
 
         <nav className="flex-1 py-2 px-2 space-y-1 overflow-y-auto">
-          <p className="text-xs text-gray-400 font-medium uppercase tracking-wider px-3 py-1">Kirjanpito</p>
+          <p className="text-xs text-gray-500 font-medium uppercase tracking-wider px-3 py-1">Kirjanpito</p>
           {renderItems(navItems)}
 
-          <p className="text-xs text-gray-400 font-medium uppercase tracking-wider px-3 py-1 mt-3">Työkalut</p>
+          <p className="text-xs text-gray-500 font-medium uppercase tracking-wider px-3 py-1 mt-3">Työkalut</p>
           {renderItems(toolItems)}
         </nav>
 

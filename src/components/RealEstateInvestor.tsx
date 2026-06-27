@@ -311,7 +311,7 @@ function GuidesTab() {
                 </div>
                 <span className="font-medium text-gray-900">{g.title}</span>
               </div>
-              <span className="text-gray-400">{isOpen ? '▲' : '▼'}</span>
+              <span className="text-gray-500">{isOpen ? '▲' : '▼'}</span>
             </button>
             {isOpen && (
               <CardContent className="pt-0 pb-4">

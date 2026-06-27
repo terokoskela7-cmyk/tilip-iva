@@ -110,7 +110,7 @@ export default function YELCalculator() {
                       <span className="font-medium text-gray-900">{r.label}</span>
                       <span className="text-gray-500 ml-2">{r.income.toLocaleString('fi-FI')} €</span>
                     </div>
-                    <span className="text-xs text-gray-400">{r.desc}</span>
+                    <span className="text-xs text-gray-500">{r.desc}</span>
                   </button>
                 ))}
                 <div className="bg-amber-50 border border-amber-200 rounded-md p-3 mt-2 flex items-start gap-2">

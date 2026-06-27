@@ -106,7 +106,7 @@ export default function CashFlowForecast() {
               <CardContent className="p-3">
                 <p className="text-xs text-gray-500">Pienin saldo</p>
                 <p className={`text-xl font-bold ${minBalance >= 0 ? 'text-gray-900' : 'text-red-600'}`}>{minBalance.toLocaleString('fi-FI')} €</p>
-                {worstMonth && <p className="text-xs text-gray-400">{worstMonth.month}</p>}
+                {worstMonth && <p className="text-xs text-gray-500">{worstMonth.month}</p>}
               </CardContent>
             </Card>
           </div>

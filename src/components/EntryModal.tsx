@@ -285,7 +285,7 @@ export default function EntryModal({ open, onOpenChange, onSave, editingEntry, a
                       disabled={lines.length <= 2}
                       className={`w-10 h-10 rounded-md flex items-center justify-center transition-colors ${
                         lines.length <= 2
-                          ? 'text-gray-300 cursor-not-allowed'
+                          ? 'text-gray-500 cursor-not-allowed'
                           : 'text-red-500 hover:bg-red-50 hover:text-red-700 active:bg-red-100'
                       }`}
                       aria-label="Poista rivi"
@@ -325,7 +325,7 @@ export default function EntryModal({ open, onOpenChange, onSave, editingEntry, a
                         </div>
                       ) : (
                         <div className="flex items-center gap-2">
-                          <Paperclip className="w-4 h-4 text-gray-400" />
+                          <Paperclip className="w-4 h-4 text-gray-500" />
                           <a
                             href={att.url || att.data}
                             target="_blank"
@@ -354,7 +354,7 @@ export default function EntryModal({ open, onOpenChange, onSave, editingEntry, a
                 <Label htmlFor="file-upload" className="cursor-pointer inline-flex items-center gap-2 px-3 py-2 border rounded-md text-sm text-gray-600 hover:bg-gray-50 transition-colors">
                   <ImageIcon className="w-4 h-4" /> Lisää kuva tai PDF
                 </Label>
-                <span className="text-xs text-gray-400">Max 5 MB tiedosto</span>
+                <span className="text-xs text-gray-500">Max 5 MB tiedosto</span>
               </div>
             </div>
           </div>
