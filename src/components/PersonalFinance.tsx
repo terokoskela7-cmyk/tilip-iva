@@ -1,10 +1,11 @@
-
-import { useState, useMemo } from 'react';
-import { Plus, Trash2, TrendingUp, Wallet, Landmark, Coins, Sparkles } from 'lucide-react';
+import { useState, useMemo, useRef } from 'react';
+import { Plus, Trash2, TrendingUp, Wallet, Landmark, Coins, Sparkles, Upload, Save, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -32,7 +33,21 @@ interface PersonalFinanceProps {
   cashEntries: CashRegisterEntry[];
   onAddEntry: (entry: PersonalEntry) => void;
   onDeleteEntry: (id: string) => void;
-  onAddDemoData?: () => void;
+}
+
+interface CsvRow {
+  date: string;
+  description: string;
+  amount: number;
+  raw: string[];
+}
+
+interface ParsedRow extends CsvRow {
+  id: string;
+  type: 'income' | 'expense';
+  category: string;
+  confidence: 'high' | 'medium' | 'low';
+  selected: boolean;
 }
 
 const expenseCategories = [
@@ -55,12 +70,138 @@ const incomeCategories = [
 
 const allCategories = [...incomeCategories, ...expenseCategories];
 
+const CATEGORY_KEYWORDS: Record<string, string[]> = {
+  palkka: ['palkka', 'salary', 'palkkio', 'korvaus', 'palkkaus', 'wage', 'payroll'],
+  sivutulo: ['sivutulo', 'sivu', 'freelance', 'konsultti', 'vuokratulo', 'vuokra', 'osinko', 'hyvitys', 'korvaus'],
+  myynti: ['myynti', 'myy', 'myydy', 'kauppa', 'myyntituotto', 'myyty'],
+  ruoka: ['ruoka', 'prisma', 'k-market', 's-market', 'alepa', 'sale', 'lidl', 'stockmann', 'citymarket', 'kärkkäinen', 'food', 'sushi', 'pizza', 'ravintola', 'kahvila', 'kahvi', 'ruokakauppa', 'supermarket', 'market'],
+  asuminen: ['asuminen', 'vuokra', 'hoitovastike', 'vastike', 'sähkö', 'vesi', 'lämmitys', 'kiinteistö', 'asunto', 'dna', 'elisa', 'tel', 'nett', 'kiinteistöhuolto', 'isännöinti'],
+  liikenne: ['liikenne', 'bussi', 'juna', 'metro', 'taksi', 'uber', 'bolt', 'polttoaine', 'bensa', 'diesel', 'auto', 'rengas', 'huolto', 'katsastus', 'pysäköinti', 'vr', ' hsl', 'matkakortti'],
+  viihde: ['viihde', 'elokuva', 'konsertti', 'teatteri', 'spotify', 'netflix', 'hbo', 'disney', 'youtube', 'peli', 'ravintola', 'baari', 'pub', 'olut', 'viini', 'harrastus', 'keilaus'],
+  terveys: ['terveys', 'apteekki', 'lääkäri', 'hammas', 'sairaala', 'kela', 'vakuutus', 'terveydenhuolto', 'fysioterapia', 'psykologi', 'optikko', 'mehiläinen', 'terveystalo', 'pihlajalinna'],
+  vaatteet: ['vaatteet', 'vaate', 'kenkä', 'h&m', 'zalando', 'cubus', 'dressmann', 'gina', 'tokmanni', 'asko', 'ikea', 'sisustus', 'huonekalu', 'muoti'],
+  koulutus: ['koulutus', 'kirja', 'opiskelu', 'kurssi', 'koulu', 'yliopisto', 'kirjasto', 'sanoma', 'tietokirja', 'lukio', 'ammattikoulu', 'opinto', 'luent'],
+  muut: ['lahjoitus', 'jäsenmaksu', 'maksu', 'kulu', 'muu', 'pankkikulu', 'kulut', 'nosto', 'siirto'],
+};
+
 function generateId(): string {
   return Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
 }
 
 function monthKey(date: Date): string {
   return format(date, 'yyyy-MM');
+}
+
+function parseAmount(value: string): number | null {
+  if (!value) return null;
+  const normalized = value
+    .replace(/\s+/g, '')
+    .replace('€', '')
+    .replace(',', '.');
+  const num = parseFloat(normalized);
+  return isNaN(num) ? null : num;
+}
+
+function normalizeDate(value: string): string | null {
+  if (!value) return null;
+  const v = value.trim();
+  // YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+  // DD.MM.YYYY
+  const dmy = v.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (dmy) return `${dmy[3]}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}`;
+  // D.M.YYYY
+  const dmy2 = v.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2})$/);
+  if (dmy2) {
+    const year = parseInt(dmy2[3], 10);
+    const fullYear = year >= 50 ? 1900 + year : 2000 + year;
+    return `${fullYear}-${dmy2[2].padStart(2, '0')}-${dmy2[1].padStart(2, '0')}`;
+  }
+  // Try Date.parse
+  const d = new Date(v);
+  if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+  return null;
+}
+
+function detectAmountColumn(headers: string[], row: string[]): number {
+  // Prefer columns named amount, summa, määrä, sum, etc.
+  const amountIdx = headers.findIndex((h) =>
+    ['amount', 'summa', 'määrä', 'sum', 'euro', 'eur'].some((k) => h.toLowerCase().includes(k))
+  );
+  if (amountIdx >= 0) return amountIdx;
+  // Fallback: find column that looks like a number
+  return row.findIndex((cell) => parseAmount(cell) !== null);
+}
+
+function parseCsv(text: string): CsvRow[] {
+  const lines = text.trim().split(/\r?\n/);
+  if (lines.length < 2) return [];
+  const delimiter = text.includes('\t') ? '\t' : ';';
+  const header = lines[0].split(delimiter).map((h) => h.trim().replace(/^"|"$/g, ''));
+  const rows: CsvRow[] = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cells = lines[i].split(delimiter).map((c) => c.trim().replace(/^"|"$/g, ''));
+    if (cells.length < 3) continue;
+    const dateIdx = header.findIndex((h) => /päivä|date|pvm|kirjauspäivä|arvo|maksupäivä/i.test(h)) || 0;
+    const descIdx = header.findIndex((h) => /kuvaus|selitys|description|nimi|saaja|maksaja|viite/i.test(h));
+    const amountIdx = detectAmountColumn(header, cells);
+    const date = normalizeDate(cells[Math.max(0, dateIdx)]);
+    const description = cells[descIdx >= 0 ? descIdx : 1] || '';
+    const amount = parseAmount(cells[amountIdx >= 0 ? amountIdx : cells.length - 1]);
+    if (!date || amount === null || !description) continue;
+    rows.push({ date, description, amount, raw: cells });
+  }
+  return rows;
+}
+
+function autoCategorize(description: string, amount: number): { type: 'income' | 'expense'; category: string; confidence: 'high' | 'medium' | 'low' } {
+  const desc = description.toLowerCase();
+  // Income first — high confidence
+  for (const [cat, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
+    if (!incomeCategories.some((c) => c.id === cat)) continue;
+    if (keywords.some((k) => desc.includes(k))) {
+      return { type: 'income', category: cat, confidence: 'high' };
+    }
+  }
+  // Expense categories
+  for (const [cat, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
+    if (!expenseCategories.some((c) => c.id === cat)) continue;
+    if (keywords.some((k) => desc.includes(k))) {
+      return { type: 'expense', category: cat, confidence: 'high' };
+    }
+  }
+  // Partial matches for expenses
+  for (const [cat, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
+    if (!expenseCategories.some((c) => c.id === cat)) continue;
+    for (const kw of keywords) {
+      if (kw.length > 3 && desc.includes(kw.slice(0, kw.length - 1))) {
+        return { type: 'expense', category: cat, confidence: 'medium' };
+      }
+    }
+  }
+  // Fallback by amount sign
+  return { type: amount >= 0 ? 'income' : 'expense', category: 'muut', confidence: 'low' };
+}
+
+function createDemoData(): Omit<PersonalEntry, 'id' | 'createdAt'>[] {
+  const mk = monthKey(new Date());
+  return [
+    { date: `${mk}-01`, description: 'Palkka', amount: 3200, category: 'palkka' },
+    { date: `${mk}-02`, description: 'Sivutulo verkkokaupasta', amount: 250, category: 'sivutulo' },
+    { date: `${mk}-03`, description: 'Ruokaostokset Prisma', amount: -85.5, category: 'ruoka' },
+    { date: `${mk}-04`, description: 'Vuokra', amount: -950, category: 'asuminen' },
+    { date: `${mk}-05`, description: 'Bussilippu', amount: -55, category: 'liikenne' },
+    { date: `${mk}-06`, description: 'Elokuvat', amount: -28, category: 'viihde' },
+    { date: `${mk}-07`, description: 'Apteekki', amount: -32.4, category: 'terveys' },
+    { date: `${mk}-08`, description: 'Uudet kengät', amount: -89.9, category: 'vaatteet' },
+    { date: `${mk}-09`, description: 'Verkkokurssi', amount: -49, category: 'koulutus' },
+    { date: `${mk}-10`, description: 'Kahvit ja lahjat', amount: -24.6, category: 'muut' },
+    { date: `${mk}-11`, description: 'Sähkölasku', amount: -62, category: 'asuminen' },
+    { date: `${mk}-12`, description: 'Polttoaine', amount: -74, category: 'liikenne' },
+    { date: `${mk}-13`, description: 'Spotify', amount: -12.99, category: 'viihde' },
+    { date: `${mk}-14`, description: 'Kirja', amount: -24.9, category: 'koulutus' },
+    { date: `${mk}-15`, description: 'Lounas', amount: -13.5, category: 'ruoka' },
+  ];
 }
 
 export default function PersonalFinance({
@@ -70,7 +211,6 @@ export default function PersonalFinance({
   cashEntries,
   onAddEntry,
   onDeleteEntry,
-  onAddDemoData,
 }: PersonalFinanceProps) {
   const [type, setType] = useState<'income' | 'expense'>('expense');
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -79,6 +219,9 @@ export default function PersonalFinance({
   const [category, setCategory] = useState('');
   const [accountId, setAccountId] = useState('cash');
   const [selectedMonth, setSelectedMonth] = useState(monthKey(new Date()));
+  const [previewRows, setPreviewRows] = useState<ParsedRow[] | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const selectedCategories = type === 'income' ? incomeCategories : expenseCategories;
 
@@ -165,6 +308,88 @@ export default function PersonalFinance({
     setCategory('');
   };
 
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = String(ev.target?.result || '');
+      const rows = parseCsv(text);
+      const parsed: ParsedRow[] = rows.map((r) => {
+        const auto = autoCategorize(r.description, r.amount);
+        return {
+          ...r,
+          id: generateId(),
+          type: auto.type,
+          category: auto.category,
+          confidence: auto.confidence,
+          selected: true,
+        };
+      });
+      setPreviewRows(parsed);
+    };
+    reader.readAsText(file);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const toggleRow = (id: string) => {
+    setPreviewRows((prev) => (prev ? prev.map((r) => (r.id === id ? { ...r, selected: !r.selected } : r)) : null));
+  };
+
+  const toggleAll = (checked: boolean) => {
+    setPreviewRows((prev) => (prev ? prev.map((r) => ({ ...r, selected: checked })) : null));
+  };
+
+  const updatePreviewCategory = (id: string, category: string) => {
+    setPreviewRows((prev) =>
+      prev
+        ? prev.map((r) =>
+            r.id === id
+              ? {
+                  ...r,
+                  category,
+                  type: incomeCategories.some((c) => c.id === category) ? 'income' : 'expense',
+                }
+              : r
+          )
+        : null
+    );
+  };
+
+  const savePreview = async () => {
+    if (!previewRows) return;
+    const selected = previewRows.filter((r) => r.selected);
+    for (const row of selected) {
+      await onAddEntry({
+        id: generateId(),
+        date: row.date,
+        description: row.description,
+        amount: row.type === 'income' ? Math.abs(row.amount) : -Math.abs(row.amount),
+        category: row.category,
+        accountId: accountId === 'cash' ? undefined : accountId,
+        createdAt: new Date().toISOString(),
+      });
+    }
+    setPreviewRows(null);
+    setSuccess(`Tallennettu ${selected.length} tapahtumaa`);
+    setTimeout(() => setSuccess(null), 3000);
+  };
+
+  const addDemoData = () => {
+    const demo = createDemoData();
+    for (const entry of demo) {
+      onAddEntry({ ...entry, id: generateId(), createdAt: new Date().toISOString() });
+    }
+  };
+
+  const previewTotals = useMemo(() => {
+    if (!previewRows) return null;
+    const selected = previewRows.filter((r) => r.selected);
+    const income = selected.filter((r) => r.type === 'income').reduce((sum, r) => sum + Math.abs(r.amount), 0);
+    const expense = selected.filter((r) => r.type === 'expense').reduce((sum, r) => sum + Math.abs(r.amount), 0);
+    return { income, expense, count: selected.length, total: previewRows.length };
+  }, [previewRows]);
+
   const months = useMemo(() => {
     const now = new Date();
     const list: { value: string; label: string }[] = [];
@@ -177,6 +402,12 @@ export default function PersonalFinance({
 
   return (
     <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-6">
+      {success && (
+        <div className="fixed top-4 right-4 z-50 bg-green-50 text-green-800 border border-green-200 px-4 py-3 rounded-md shadow-lg text-sm font-medium">
+          {success}
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <h2 className="text-2xl font-bold text-gray-900">Oma talous</h2>
         <div className="flex items-center gap-2">
@@ -190,13 +421,79 @@ export default function PersonalFinance({
               ))}
             </SelectContent>
           </Select>
-          {onAddDemoData && entries.length === 0 && (
-            <Button variant="outline" size="sm" onClick={onAddDemoData}>
+          <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+            <Upload className="w-4 h-4 mr-2" /> CSV
+          </Button>
+          <input ref={fileInputRef} type="file" accept=".csv,.txt" className="hidden" onChange={handleFileUpload} />
+          {entries.length === 0 && (
+            <Button variant="outline" size="sm" onClick={addDemoData}>
               <Sparkles className="w-4 h-4 mr-2" /> Demo
             </Button>
           )}
         </div>
       </div>
+
+      {previewRows && (
+        <Card className="border-blue-200 bg-blue-50/50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center justify-between">
+              <span>CSV-esikatselu</span>
+              <Button variant="ghost" size="sm" onClick={() => setPreviewRows(null)}><X className="w-4 h-4" /></Button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-wrap gap-3 text-sm">
+              <span className="text-gray-600">Tulot: <strong className="text-green-600">{previewTotals?.income.toFixed(2)} €</strong></span>
+              <span className="text-gray-600">Menot: <strong className="text-red-600">{previewTotals?.expense.toFixed(2)} €</strong></span>
+              <span className="text-gray-600">Valittu: <strong>{previewTotals?.count} / {previewTotals?.total}</strong></span>
+            </div>
+            <div className="max-h-[400px] overflow-y-auto border rounded-md bg-white">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 sticky top-0">
+                  <tr>
+                    <th className="px-3 py-2 text-left"><Checkbox checked={previewRows.every((r) => r.selected)} onCheckedChange={(v) => toggleAll(Boolean(v))} /></th>
+                    <th className="px-3 py-2 text-left">Päivä</th>
+                    <th className="px-3 py-2 text-left">Kuvaus</th>
+                    <th className="px-3 py-2 text-left">Luottamus</th>
+                    <th className="px-3 py-2 text-right">Summa</th>
+                    <th className="px-3 py-2 text-left">Kategoria</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {previewRows.map((row) => (
+                    <tr key={row.id} className={row.selected ? '' : 'opacity-50'}>
+                      <td className="px-3 py-2"><Checkbox checked={row.selected} onCheckedChange={() => toggleRow(row.id)} /></td>
+                      <td className="px-3 py-2">{row.date}</td>
+                      <td className="px-3 py-2">{row.description}</td>
+                      <td className="px-3 py-2">
+                        <Badge variant={row.confidence === 'high' ? 'default' : row.confidence === 'medium' ? 'secondary' : 'outline'}>
+                          {row.confidence === 'high' ? 'Korkea' : row.confidence === 'medium' ? 'Keski' : 'Matala'}
+                        </Badge>
+                      </td>
+                      <td className={`px-3 py-2 text-right font-medium ${row.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {row.amount > 0 ? '+' : ''}{row.amount.toFixed(2)} €
+                      </td>
+                      <td className="px-3 py-2">
+                        <Select value={row.category} onValueChange={(v) => updatePreviewCategory(row.id, v)}>
+                          <SelectTrigger className="w-[140px] h-8">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {allCategories.map((cat) => <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <Button onClick={savePreview} disabled={!previewTotals || previewTotals.count === 0}>
+              <Save className="w-4 h-4 mr-2" /> Tallenna {previewTotals?.count || 0} tapahtumaa
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>

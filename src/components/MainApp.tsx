@@ -133,10 +133,6 @@ export function MainApp() {
               cashEntries={store.cashEntries}
               onAddEntry={store.addPersonalEntry}
               onDeleteEntry={store.removePersonalEntry}
-              onAddDemoData={() => {
-                // Demo data seed handled via a helper loaded on demand
-                import('@/lib/personalDemoData').then((mod) => mod.seedPersonalDemoData(store.addPersonalEntry, store.addBudget));
-              }}
             />
           </Suspense>
         )}
