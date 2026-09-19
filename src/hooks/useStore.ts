@@ -91,7 +91,9 @@ export function useStore() {
       const isPersonal = activeLedger?.type === 'personal';
 
       const comp = await getCompany();
-      const companyRequired = activeLedger?.type === 'company';
+      // Uudella käyttäjällä tilikirjoja ei vielä ole, jolloin activeLedger on undefined.
+      // Myös silloin yrityksen tiedot tarvitaan, jotta onboarding näkyy.
+      const companyRequired = !activeLedger || activeLedger.type === 'company';
       if (!comp && companyRequired) {
         setHasCompany(false);
         setLoading(false);

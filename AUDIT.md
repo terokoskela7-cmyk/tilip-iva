@@ -24,11 +24,22 @@ tietokannasta, eli se tuottaa käytännössä tyhjän varmuuskopion.
 | Keskitaso | 11 | Luokittelu, CSV-tuonti, laskurit, suorituskyky |
 | Matala | 9 | Toimitusketju, lint, testit, kuollut koodi |
 
+### Korjaustilanne
+
+| Löydös | Tila |
+|---|---|
+| K1 Onboarding ohitetaan | ✅ Korjattu |
+| K3 Varmuuskopio / tyhjennys väärästä tietokannasta | ✅ Korjattu |
+| K5 Firestore kaatuu undefined-arvoihin | ✅ Korjattu |
+| K2 Laskutus ja toistuvat kirjaukset IndexedDB:ssä | ⬜ Avoin |
+| K4 Oma talous lukee localStoragesta | ⬜ Avoin |
+| Kaikki H-, M- ja L-löydökset | ⬜ Avoin |
+
 ---
 
 ## Kriittiset
 
-### K1. Uusi käyttäjä ei näe onboardingia ollenkaan
+### K1. Uusi käyttäjä ei näe onboardingia ollenkaan — ✅ korjattu
 `src/hooks/useStore.ts:73-99`
 
 Kun rekisteröitynyt käyttäjä kirjautuu ensimmäistä kertaa, tilikirjoja ei ole. Silloin
@@ -60,7 +71,7 @@ Molemmat importoivat `@/lib/db` (IndexedDB) eivätkä `@/lib/firestore`. Seurauk
 - `useStore` lataa `customers`, `invoices` ja `recurringEntries` Firestoresta joka latauksella —
   mutta yksikään näkymä ei käytä niitä (ks. M11).
 
-### K3. Varmuuskopio on tyhjä ja "tyhjennä data" ei tyhjennä
+### K3. Varmuuskopio on tyhjä ja "tyhjennä data" ei tyhjennä — ✅ korjattu
 `src/components/SettingsPage.tsx:9, 45-62`
 
 ```ts
@@ -92,7 +103,7 @@ tyhjä (tai näyttää demo-dataa) vaikka Firestoressa on tapahtumia; `clearAllD
 (`PersonalFinance.tsx:686`) tyhjentää vain localStoragen, joten "Tyhjennetäänkö kaikki Oma talous
 -tiedot?" jättää Firestoren tapahtumat paikalleen — ja ne näkyvät yhä budjettinäkymässä.
 
-### K5. Firestore hylkää `undefined`-arvot → tallennus kaatuu
+### K5. Firestore hylkää `undefined`-arvot → tallennus kaatuu — ✅ korjattu
 `src/components/Onboarding.tsx:61`, `src/components/PersonalFinance.tsx:592`
 
 Firestore-SDK heittää `setDoc`-kutsussa virheen `Unsupported field value: undefined`, koska
@@ -362,15 +373,22 @@ tuotantoympäristöjen erottamisen.
 
 ## Suositeltu korjausjärjestys
 
-1. **K3** — korjaa varmuuskopion import osoittamaan `@/lib/firestore`. Yhden rivin muutos, estää
-   aineiston menetyksen.
-2. **K5** — `initializeFirestore(app, { ignoreUndefinedProperties: true })`. Yksi rivi, korjaa
-   kaikki tallennuskaatumiset kerralla.
-3. **K1** — onboarding-ehto. Yksi rivi, korjaa uuden käyttäjän ensikokemuksen.
+### Tehty
+
+1. ~~**K3** — varmuuskopion import osoittamaan `@/lib/firestore`.~~ Lisäksi `exportAllData`
+   laajennettu kattamaan tilikirja, yritystiedot, pankkitilit ja -tapahtumat, oman talouden
+   tapahtumat ja budjetit, ja "Tyhjennä kaikki data" ei enää kylvä demo-dataa Firestoreen.
+2. ~~**K5** — `initializeFirestore(app, { ignoreUndefinedProperties: true })`.~~
+3. ~~**K1** — onboarding-ehto `!activeLedger || activeLedger.type === 'company'`.~~
+
+### Seuraavaksi
+
 4. **K2 + K4 + H8** — yksi tallennuskerros. Siirrä `Invoicing`, `RecurringEntries`,
    `PersonalFinance` ja kassakirja Firestoreen ja poista `db.ts` sekä localStorage-polku.
 5. **H1** — estä epätasapainoisen tositteen tallennus (validoi samoilta riveiltä jotka tallennetaan).
 6. **H3 + H4 + H5** — raporttien tilikausirajaus, negatiivisten saldojen säilytys, tilikauden tulos taseeseen.
-7. **H6 + H7** — juokseva laskunumerointi ja oikea kirjausketju.
-8. **L1** — lockfile viralliseen rekisteriin.
-9. **L3** — yksikkötestit laskentalogiikalle ja lint + typecheck CI:hin ennen deployta.
+7. **H2 + H6 + H7** — juokseva tosite- ja laskunumerointi sekä oikea laskun kirjausketju.
+8. **M1 + M2 + M3–M6** — oman talouden luokittelusäännöt, budjetin kategoriat ja CSV-jäsennys.
+9. **M8 + M9** — YEL- ja verolaskurin kertoimet ajan tasalle.
+10. **L1** — lockfile viralliseen rekisteriin.
+11. **L3** — yksikkötestit laskentalogiikalle sekä lint + typecheck CI:hin ennen deployta.

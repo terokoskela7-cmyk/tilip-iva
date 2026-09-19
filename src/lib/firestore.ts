@@ -351,22 +351,50 @@ export async function migrateToLedgers(): Promise<void> {
 }
 
 // === EXPORT ===
-export async function exportAllData(): Promise<Record<string, unknown[]>> {
-  const [accounts, entries, customers, invoices, recurringEntries, vatPeriods] = await Promise.all([
-    getAllAccounts(),
-    getAllEntries(),
-    getAllCustomers(),
-    getAllInvoices(),
-    getAllRecurringEntries(),
-    getAllVatPeriods(),
-  ]);
-  return {
+export async function exportAllData(): Promise<Record<string, unknown>> {
+  const ledgerId = getActiveLedgerId();
+  const [
+    ledgers,
+    company,
     accounts,
     entries,
     customers,
     invoices,
     recurringEntries,
     vatPeriods,
+    bankAccounts,
+    bankTransactions,
+    personalEntries,
+    budgets,
+  ] = await Promise.all([
+    getAllLedgers(),
+    getCompany(),
+    getAllAccounts(),
+    getAllEntries(),
+    getAllCustomers(),
+    getAllInvoices(),
+    getAllRecurringEntries(),
+    getAllVatPeriods(),
+    getAllBankAccounts(),
+    getAllTransactions(),
+    getAllPersonalEntries(),
+    getAllBudgets(),
+  ]);
+  return {
+    exportedAt: new Date().toISOString(),
+    ledgerId,
+    ledger: ledgers.find((l) => l.id === ledgerId) ?? null,
+    company,
+    accounts,
+    entries,
+    customers,
+    invoices,
+    recurringEntries,
+    vatPeriods,
+    bankAccounts,
+    bankTransactions,
+    personalEntries,
+    budgets,
   };
 }
 

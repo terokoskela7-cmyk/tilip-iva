@@ -6,8 +6,7 @@ import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Download, Save, Building2, UserCog, RotateCcw } from 'lucide-react';
 import type { Company } from '@/types';
-import { exportAllData, resetDatabase } from '@/lib/db';
-import { seedDatabase } from '@/lib/seed';
+import { exportAllData, resetDatabase } from '@/lib/firestore';
 
 interface SettingsProps {
   company: Company | null;
@@ -57,7 +56,6 @@ export default function SettingsPage({ company, onUpdateCompany, onReload }: Set
   async function handleReset() {
     if (window.confirm('Haluatko varmasti tyhjentää kaiken datan? Tätä ei voi peruuttaa.')) {
       await resetDatabase();
-      await seedDatabase();
       onReload();
     }
   }

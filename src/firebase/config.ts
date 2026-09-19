@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
-import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
+import { initializeFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { getStorage, connectStorageEmulator } from 'firebase/storage';
 
 const firebaseConfig = {
@@ -14,7 +14,10 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+// ignoreUndefinedProperties: valinnaiset kentät (esim. tyhjä Y-tunnus) välitetään
+// komponenteista undefined-arvoina. Ilman tätä Firestore heittää
+// "Unsupported field value: undefined" ja koko tallennus epäonnistuu.
+export const db = initializeFirestore(app, { ignoreUndefinedProperties: true });
 export const storage = getStorage(app);
 
 if (import.meta.env.DEV || window.location.hostname === 'localhost') {
