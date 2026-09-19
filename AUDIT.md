@@ -52,9 +52,10 @@ tietokannasta, eli se tuottaa käytännössä tyhjän varmuuskopion.
 | M6 Kuollut haarautuminen päivämäärissä | ✅ Korjattu |
 | M8 YEL-laskurin prosentit vanhentuneet | ✅ Korjattu |
 | M9 Verolaskuri sekoittaa yhtiömuodot | ✅ Korjattu |
-| L3 Ei yhtään testiä | 🟡 Laskentalogiikka testattu (97 testiä), CI ajaa testit |
+| L3 Ei yhtään testiä | 🟡 Laskentalogiikka testattu (99 testiä), CI ajaa testit |
 | M12 Mobiilin yläpalkki peitti sisällön | ✅ Korjattu |
-| L1, L2, L4–L9 | ⬜ Avoin |
+| L1 Lockfile osoitti kolmannen osapuolen peiliin | ✅ Korjattu |
+| L2, L4–L9 | ⬜ Avoin |
 
 **Kaikki kirjoitukset menevät nyt Firestoreen.** `src/lib/db.ts` (IndexedDB) ja `src/lib/seed.ts`
 on poistettu; `src/lib/legacyMigration.ts` siirtää aiemmin paikallisesti tallennetun aineiston
@@ -380,13 +381,28 @@ Maksettuja lukuoperaatioita ja latenssia ilman vastinetta.
 
 ## Matalat / laatu
 
-### L1. Lockfile osoittaa kolmannen osapuolen peiliin
-`package-lock.json` — 151 pakettia on lukittu osoitteeseen `registry.npmmirror.com` virallisen
-`registry.npmjs.org`:n sijaan. Tässä ympäristössä `npm ci` jumittui yli 20 minuutiksi; virallista
-rekisteriä vasten sama asennus kesti **13 sekuntia**. Tämä on sekä CI:n hauraus että
-toimitusketjuriski: paketit haetaan taholta, jota projekti ei hallitse. Korjaus:
-`npm ci --registry=https://registry.npmjs.org --replace-registry-host=always` ja lockfilen
-uudelleenluonti.
+### L1. Lockfile osoittaa kolmannen osapuolen peiliin — ✅ korjattu
+`package-lock.json` — 817 paketista **151 oli lukittu osoitteeseen `registry.npmmirror.com`**
+virallisen `registry.npmjs.org`:n sijaan, eli lockfile oli syntynyt osittain peilipalvelimen
+takana. Tämä on sekä toimitusketjuriski (paketit haetaan taholta jota projekti ei hallitse) että
+CI:n hauraus: tässä ympäristössä `npm ci` jumittui yli 20 minuutiksi.
+
+Korjattu vaihtamalla pelkät `resolved`-osoitteet, **ei versioita eikä integrity-tiivisteitä** —
+lockfilen 151 muuttunutta riviä ovat kaikki `resolved`-rivejä. Tämä oli tietoinen valinta:
+lockfilen uudelleenluonti `npm install`illa olisi samalla päivittänyt paketteja package.jsonin
+semver-välien sisällä, mikä on eri muutos kuin rekisterin korjaaminen.
+
+Varmistus: `npm ci` ilman rekisterivalitsimia asentaa 768 pakettia **19 sekunnissa**. Koska npm
+tarkistaa jokaisen paketin sha512-tiivisteen lockfilea vasten, onnistunut asennus todistaa että
+npmjs.org palvelee tavulleen samat paketit kuin peili palveli. Versiot tarkistettiin myös
+erikseen muuttumattomiksi.
+
+Lisäksi:
+- `.npmrc` lukitsee rekisterin, jottei peiliosoitteita päädy lockfileen uudelleen sen mukaan,
+  mitä rekisteriä asennuksen tekevä kone sattuu käyttämään.
+- `tests/lockfile.test.ts` kaatuu, jos lockfileen ilmestyy muita kuin npmjs.org-osoitteita.
+  Vahtitesti varmistettiin rikkomalla lockfile tahallaan: testi kaatui, ja palautuksen jälkeen
+  meni läpi. CI ajaa testit ennen buildia.
 
 ### L2. `npm run lint` — 27 virhettä
 Merkittävimmät sovelluskoodissa:
@@ -401,7 +417,7 @@ Merkittävimmät sovelluskoodissa:
 Lint ei ole osa CI:tä, joten nämä eivät estä julkaisua.
 
 ### L3. Ei yhtään testiä — 🟡 osittain korjattu
-Repossa ei ollut testejä eikä testiajuria. Nyt `npm test` ajaa 97 testiä
+Repossa ei ollut testejä eikä testiajuria. Nyt `npm test` ajaa 99 testiä
 (`tests/`, Noden oma test runner + esbuild, ei uusia riippuvuuksia): tilikausien muodostus,
 senttipohjainen saldolaskenta, tuloslaskelma/tase/ALV yhdelle tilikaudelle, tositteen
 validointi, juokseva numerointi, myyntilaskun kirjausketju, CSV-tuonti sekä YEL- ja
@@ -487,6 +503,7 @@ tuotantoympäristöjen erottamisen.
 
 ### Seuraavaksi
 
-10. **L1** — lockfile viralliseen rekisteriin.
-11. **L3** — osittain tehty: `npm test` ajaa laskentalogiikan testit (97 kpl) ja CI ajaa ne
+10. ~~**L1** — lockfile viralliseen rekisteriin.~~ Vain `resolved`-osoitteet vaihdettiin,
+    versiot säilyivät. `.npmrc` ja vahtitesti estävät toistumisen.
+11. **L3** — osittain tehty: `npm test` ajaa laskentalogiikan testit (99 kpl) ja CI ajaa ne
     ennen buildia. Jäljellä lint CI:hin ja testit myös komponenttitasolle.
