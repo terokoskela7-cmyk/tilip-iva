@@ -50,9 +50,11 @@ tietokannasta, eli se tuottaa käytännössä tyhjän varmuuskopion.
 | M4 CSV-jäsennys ei kestä lainausmerkkejä | ✅ Korjattu |
 | M5 Tuonti ei tunnista duplikaatteja | ✅ Korjattu |
 | M6 Kuollut haarautuminen päivämäärissä | ✅ Korjattu |
-| L3 Ei yhtään testiä | 🟡 Laskentalogiikka testattu (79 testiä), CI ajaa testit |
+| M8 YEL-laskurin prosentit vanhentuneet | ✅ Korjattu |
+| M9 Verolaskuri sekoittaa yhtiömuodot | ✅ Korjattu |
+| L3 Ei yhtään testiä | 🟡 Laskentalogiikka testattu (97 testiä), CI ajaa testit |
 | M12 Mobiilin yläpalkki peitti sisällön | ✅ Korjattu |
-| M8–M9, L1, L2, L4–L9 | ⬜ Avoin |
+| L1, L2, L4–L9 | ⬜ Avoin |
 
 **Kaikki kirjoitukset menevät nyt Firestoreen.** `src/lib/db.ts` (IndexedDB) ja `src/lib/seed.ts`
 on poistettu; `src/lib/legacyMigration.ts` siirtää aiemmin paikallisesti tallennetun aineiston
@@ -285,15 +287,27 @@ Jokainen `onAddEntry` tekee oman Firestore-kirjoituksen, lataa **kaikki** tapaht
 näyttää toastin. 200 rivin tiliotteella tämä on 200 kirjoitusta + 200 täyttä uudelleenlatausta.
 `writeBatch` + yksi lataus lopuksi.
 
-### M8. YEL-laskurin prosentit ovat vanhentuneet
+### M8. YEL-laskurin prosentit ovat vanhentuneet — ✅ korjattu
 `src/components/YELCalculator.tsx:10`
 
-Käytetään 19 % / 22 % / 25 % iän mukaan (<35, <50, muut). Todellinen YEL-maksuprosentti on
-**24,10 %** alle 53-vuotiaille ja **25,60 %** 53–62-vuotiaille (ja takaisin 24,10 % 63 vuodesta).
-Nuorelle yrittäjälle laskuri antaa noin 20 % liian pienen maksun. Aloittavan yrittäjän 22 %
-alennus puuttuu kokonaan. Työtulon alaraja 9 010 € on oikein.
+Käytettiin 19 % / 22 % / 25 % iän mukaan (<35, <50, muut). Nämä eivät vastanneet mitään
+voimassa ollutta maksua, ja nuorelle yrittäjälle laskuri antoi noin viidenneksen liian pienen
+maksun. Aloittavan yrittäjän alennus puuttui kokonaan.
 
-### M9. Verolaskuri sekoittaa yhtiömuodot
+Korjatut luvut vuodelle 2026: maksuprosentti **24,4 %** ja **sama kaikenikäisille** —
+ikäryhmäkohtaiset maksut poistuivat vuoden 2026 alusta, kun siirtymäkausi 2017–2025 päättyi.
+Aloittavan yrittäjän alennus **22 %** neljän ensimmäisen yrittäjävuoden ajan. Työtulon alaraja
+**9 423,09 €** ja yläraja **214 000 €**; työttömyysturvan raja **15 481 €**.
+
+Myös sairauspäiväraha laskettiin väärin ("noin 60 % työtulosta / 300"). Oikea laskenta:
+työtulosta vähennetään 9,07 %, minkä jälkeen päiväraha on 70 % 28 241 euroon asti ja 20 % sen
+ylittävältä osalta, jaettuna 300 arkipäivälle; vähimmäismäärä 31,99 €/arkipäivä. Testit
+toistavat julkaistut esimerkit sentilleen (20 000 € → 42,43 €/pv, 40 000 € → 71,32 €/pv).
+
+Korjattu myös väite "Alle 17 500 € työtulolla et saa päivärahoja" ja maininta 45 000 eurosta
+"YEL-katon alarajana", jotka eivät pidä paikkaansa.
+
+### M9. Verolaskuri sekoittaa yhtiömuodot — ✅ korjattu
 `src/components/TaxCalculator.tsx:35-38`
 
 ```ts
@@ -302,9 +316,19 @@ const estimatedTax = taxableIncome * 0.20;  // Corporate tax 20%
 ```
 
 Yrittäjävähennys on **5 % elinkeinotoiminnan tuloksesta**, ei 15 % liikevaihdosta, eikä siinä ole
-5 000 € kattoa. Se koskee toiminimeä ja henkilöyhtiöitä — ei osakeyhtiötä, jolle taas sovelletaan
-20 % yhteisöveroa. Laskuri soveltaa molempia yhtä aikaa, joten lopputulos ei vastaa kumpaakaan
-yhtiömuotoa. Lisäksi `updateItem` (rivi 28-32) mutatoi tila-olion suoraan.
+5 000 € kattoa. Se koskee vain luonnollisia henkilöitä eli toiminimiä ja henkilöyhtiöitä — ei
+osakeyhtiötä, jolle sovelletaan 20 % yhteisöveroa. Laskuri sovelsi molempia yhtä aikaa, joten
+lopputulos ei vastannut kumpaakaan yhtiömuotoa.
+
+Laskuriin lisättiin yhtiömuodon valinta:
+- **Osakeyhtiö**: yhteisövero 20 % tuloksesta, ei yrittäjävähennystä.
+- **Toiminimi ja henkilöyhtiöt**: yrittäjävähennys 5 % tuloksesta, minkä jälkeen verotettava
+  yritystulo jaetaan pääomatuloksi (enintään 20 % nettovarallisuudesta, vaihtoehtoina myös 10 %
+  ja 0 %) ja ansiotuloksi. Pääomatulovero 30 %, yli 30 000 euron osalta 34 %.
+
+Ansiotulon veroprosentti riippuu yrittäjän muista tuloista, kotikunnasta ja henkilökohtaisista
+vähennyksistä, joita sovellus ei tiedä. Se on siksi käyttäjän säädettävä arvio eikä laskettu luku,
+ja se on merkitty näkymään arvioksi. `updateItem` ei enää mutatoi tila-oliota.
 
 ### M10. Migraatio ylittää Firestoren batch-rajan — ✅ korjattu
 `src/lib/firestore.ts:296-340`
@@ -377,10 +401,11 @@ Merkittävimmät sovelluskoodissa:
 Lint ei ole osa CI:tä, joten nämä eivät estä julkaisua.
 
 ### L3. Ei yhtään testiä — 🟡 osittain korjattu
-Repossa ei ollut testejä eikä testiajuria. Nyt `npm test` ajaa 79 testiä
+Repossa ei ollut testejä eikä testiajuria. Nyt `npm test` ajaa 97 testiä
 (`tests/`, Noden oma test runner + esbuild, ei uusia riippuvuuksia): tilikausien muodostus,
 senttipohjainen saldolaskenta, tuloslaskelma/tase/ALV yhdelle tilikaudelle, tositteen
-validointi, juokseva numerointi, myyntilaskun kirjausketju ja CSV-tuonti. CI ajaa testit ennen buildia. Kattamatta on yhä komponenttitaso, eikä lint ole vielä osa CI:tä.
+validointi, juokseva numerointi, myyntilaskun kirjausketju, CSV-tuonti sekä YEL- ja
+verolaskenta. CI ajaa testit ennen buildia. Kattamatta on yhä komponenttitaso, eikä lint ole vielä osa CI:tä.
 
 ### L4. Paikallinen kehitys vaatii emulaattorit — dokumentoimatta
 `src/firebase/config.ts:21-29` kytkeytyy emulaattoreihin aina kun `DEV` tai hostname on
@@ -456,9 +481,12 @@ tuotantoympäristöjen erottamisen.
    CSV-jäsennyksen perusosat ovat `lib/csv.ts`:ssä, tiliotetuonti `lib/bankCsv.ts`:ssä,
    oman talouden luokittelu `lib/personalCsv.ts`:ssä ja kategoriat `lib/personalCategories.ts`:ssä.
 
+9. ~~**M8 + M9** — YEL- ja verolaskurin kertoimet ajan tasalle.~~ Kaikki luvut ovat nyt
+   `lib/taxRates.ts`:ssä vuosileimalla (`TAX_YEAR`), ja laskenta moduuleissa `lib/yel.ts` ja
+   `lib/businessTax.ts`. Laskurit näyttävät vuosiluvun, jotta vanhentuneet luvut huomaa.
+
 ### Seuraavaksi
 
-9. **M8 + M9** — YEL- ja verolaskurin kertoimet ajan tasalle.
 10. **L1** — lockfile viralliseen rekisteriin.
-11. **L3** — osittain tehty: `npm test` ajaa laskentalogiikan testit (79 kpl) ja CI ajaa ne
+11. **L3** — osittain tehty: `npm test` ajaa laskentalogiikan testit (97 kpl) ja CI ajaa ne
     ennen buildia. Jäljellä lint CI:hin ja testit myös komponenttitasolle.
