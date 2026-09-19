@@ -105,7 +105,7 @@ export default function Sidebar({ view, onViewChange, companyName, yTunnus, last
   return (
     <>
       {/* Mobile header */}
-      <header className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-gray-100 border-b border-gray-200 px-4 py-3 flex items-center justify-between shadow-sm">
+      <header className="lg:hidden fixed top-0 left-0 right-0 z-50 h-14 bg-gray-100 border-b border-gray-200 px-4 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 bg-blue-600 rounded-md flex items-center justify-center">
             <span className="text-white font-bold text-xs">T</span>
@@ -128,7 +128,7 @@ export default function Sidebar({ view, onViewChange, companyName, yTunnus, last
 
       {/* Sidebar - desktop fixed, mobile slide-over */}
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-40 w-64 bg-gray-100 h-screen flex flex-col shadow-lg lg:shadow-none flex-shrink-0 transition-transform duration-300 lg:translate-x-0 ${
+        className={`fixed lg:static inset-y-0 left-0 z-40 w-64 bg-gray-100 app-shell flex flex-col shadow-lg lg:shadow-none flex-shrink-0 transition-transform duration-300 lg:translate-x-0 ${
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -210,9 +210,6 @@ export default function Sidebar({ view, onViewChange, companyName, yTunnus, last
           )}
         </div>
       </aside>
-
-      {/* Mobile spacer */}
-      <div className="lg:hidden h-12" />
     </>
   );
 }

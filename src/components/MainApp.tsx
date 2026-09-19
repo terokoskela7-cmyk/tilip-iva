@@ -74,7 +74,7 @@ export function MainApp() {
 
   if (store.loading || store.hasCompany === null) {
     return (
-      <div className="h-screen w-screen flex items-center justify-center bg-gray-50">
+      <div className="app-shell w-full flex items-center justify-center bg-gray-50">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
           <p className="text-sm text-gray-600">Ladataan kirjanpitoa...</p>
@@ -88,7 +88,7 @@ export function MainApp() {
   }
 
   return (
-    <div className="h-screen w-screen flex overflow-hidden bg-white">
+    <div className="app-shell w-full flex overflow-hidden bg-white">
       <Sidebar
         view={store.view}
         onViewChange={store.setView}
@@ -103,7 +103,9 @@ export function MainApp() {
         onCreateLedger={() => store.setLedgerModalOpen(true)}
       />
 
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      {/* pt-14 jattaa tilaa mobiilin kiinteille ylapalkille (h-14), jonka alle
+          sisallon ylareuna muuten jai piiloon. */}
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden pt-14 lg:pt-0">
         {store.view === 'dashboard' && (
           <Dashboard
             entries={store.entries}

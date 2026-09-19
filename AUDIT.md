@@ -51,6 +51,7 @@ tietokannasta, eli se tuottaa käytännössä tyhjän varmuuskopion.
 | M5 Tuonti ei tunnista duplikaatteja | ✅ Korjattu |
 | M6 Kuollut haarautuminen päivämäärissä | ✅ Korjattu |
 | L3 Ei yhtään testiä | 🟡 Laskentalogiikka testattu (79 testiä), CI ajaa testit |
+| M12 Mobiilin yläpalkki peitti sisällön | ✅ Korjattu |
 | M8–M9, L1, L2, L4–L9 | ⬜ Avoin |
 
 **Kaikki kirjoitukset menevät nyt Firestoreen.** `src/lib/db.ts` (IndexedDB) ja `src/lib/seed.ts`
@@ -310,6 +311,39 @@ yhtiömuotoa. Lisäksi `updateItem` (rivi 28-32) mutatoi tila-olion suoraan.
 
 Koko migraatio tehdään yhdessä `writeBatch`issä. Firestoren raja on 500 operaatiota; sitä isompi
 aineisto kaataa migraation kokonaan eikä mitään siirry.
+
+### M12. Mobiilin kiinteä yläpalkki peitti sisällön — ✅ korjattu
+`src/components/Sidebar.tsx`, `src/components/MainApp.tsx`
+
+Löydös tuli käyttäjältä auditin jälkeen, ja se varmistettiin mittaamalla selaimessa
+390 × 664 pikselin näkymässä.
+
+Mobiilin yläpalkki on `fixed top-0` ja 61 pikseliä korkea, mutta `<main>` alkoi kohdasta
+y = 0. Sisällön ylin elementti oli kohdassa y = 16, eli **45 pikseliä sisältöä jäi palkin
+alle**. Käytännössä piiloon jäivät dashboardin välilehdet (Yleiskatsaus / Tositteet /
+Tilikartta) — eli koko yleiskatsaus ja tilikartta olivat mobiilissa saavuttamattomissa —
+sekä jokaisen näkymän otsikkorivi ja sen toiminnot, kuten raporttien tilikausivalitsin.
+
+Koodissa oli tätä varten `{/* Mobile spacer */}<div className="lg:hidden h-12" />`, mutta
+se oli sijoitettu `flex`-rivin lapseksi, jolloin siitä tuli nollan levyinen sarake eikä se
+siirtänyt sisältöä alaspäin lainkaan.
+
+Korjattu antamalla yläpalkille kiinteä korkeus (`h-14`) ja sisällölle vastaava
+`pt-14 lg:pt-0`; turha välike poistettiin. Mittaus korjauksen jälkeen: palkin alareuna
+y = 56, sisällön alku y = 72.
+
+Samalla:
+- `h-screen` (100vh) korvattiin `.app-shell`-luokalla, joka käyttää `100dvh`:ta ja jättää
+  `100vh`:n varalle. Mobiiliselaimen osoitepalkki teki 100vh:sta näkyvää aluetta
+  korkeamman, jolloin kuoren alareuna jäi tavoittamattomiin, koska kuori on
+  `overflow-hidden`.
+- `w-screen` (100vw) korvattiin `w-full`:lla vaakavierityksen välttämiseksi.
+- Tunnusluvut käyttävät `StatTile`-komponenttia, joka asettaa kapealla näytöllä nimikkeen
+  ja arvon samalle riville. Raporttien kolme tunnuslukua veivät aiemmin yli kaksi
+  ruudullista pystysuunnassa; nyt koko tuloslaskelma mahtuu yhteen näkymään.
+
+Työpöytänäkymä tarkistettiin erikseen 1280 × 800: sivupalkki 256 px, sisältö alkaa
+kohdasta 256, ei ylätäytettä eikä vaakavieritystä.
 
 ### M11. Turhia Firestore-lukuja joka latauksella — ✅ korjattu
 `src/hooks/useStore.ts:117-134`

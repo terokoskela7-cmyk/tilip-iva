@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { StatTile } from '@/components/StatTile';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -503,35 +504,21 @@ export default function PersonalFinance({
         </Card>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-gray-500">Tulot</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold text-green-600">{totals.income.toFixed(2)} €</p></CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-gray-500">Menot</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold text-red-600">{totals.expense.toFixed(2)} €</p></CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-gray-500">Netto / Säästöt</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold text-blue-600">{totals.savings.toFixed(2)} €</p></CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-gray-500">Säästöaste</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold text-purple-600">{totals.savingsRate.toFixed(1)} %</p></CardContent>
-        </Card>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
+        <StatTile label="Tulot" value={`${totals.income.toFixed(2)} €`} valueClassName="text-green-600" />
+        <StatTile label="Menot" value={`${totals.expense.toFixed(2)} €`} valueClassName="text-red-600" />
+        <StatTile label="Netto / Säästöt" value={`${totals.savings.toFixed(2)} €`} valueClassName="text-blue-600" />
+        <StatTile label="Säästöaste" value={`${totals.savingsRate.toFixed(1)} %`} valueClassName="text-purple-600" />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
         {accountBalances.map((acc) => (
-          <Card key={acc.id}>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500 flex items-center gap-2">
-                {acc.type === 'cash' ? <Coins className="w-4 h-4" /> : <Landmark className="w-4 h-4" />} {acc.name}
-              </CardTitle>
-            </CardHeader>
-            <CardContent><p className="text-xl font-bold text-gray-900">{acc.balance.toFixed(2)} €</p></CardContent>
-          </Card>
+          <StatTile
+            key={acc.id}
+            label={acc.name}
+            value={`${acc.balance.toFixed(2)} €`}
+            icon={acc.type === 'cash' ? <Coins className="w-4 h-4" /> : <Landmark className="w-4 h-4" />}
+          />
         ))}
         <Card>
           <CardHeader className="pb-2">

@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { StatTile } from '@/components/StatTile';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TrendingUp, Scale, Calculator, BarChart3 } from 'lucide-react';
@@ -109,23 +110,14 @@ export default function Reports({
 
           {/* Income Statement */}
           <TabsContent value="income" className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <Card>
-                <CardHeader className="pb-2"><CardTitle className="text-sm text-gray-500">Tuotot yht.</CardTitle></CardHeader>
-                <CardContent><p className="text-xl lg:text-2xl font-bold text-green-600">{formatMoney(report.totalRevenue)}</p></CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2"><CardTitle className="text-sm text-gray-500">Kulut yht.</CardTitle></CardHeader>
-                <CardContent><p className="text-xl lg:text-2xl font-bold text-red-600">{formatMoney(report.totalExpenses)}</p></CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2"><CardTitle className="text-sm text-gray-500">Tilikauden tulos</CardTitle></CardHeader>
-                <CardContent>
-                  <p className={`text-xl lg:text-2xl font-bold ${report.periodResult >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {report.periodResult > 0 ? '+' : ''}{formatMoney(report.periodResult)}
-                  </p>
-                </CardContent>
-              </Card>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4">
+              <StatTile label="Tuotot yht." value={formatMoney(report.totalRevenue)} valueClassName="text-green-600" />
+              <StatTile label="Kulut yht." value={formatMoney(report.totalExpenses)} valueClassName="text-red-600" />
+              <StatTile
+                label="Tilikauden tulos"
+                value={`${report.periodResult > 0 ? '+' : ''}${formatMoney(report.periodResult)}`}
+                valueClassName={report.periodResult >= 0 ? 'text-green-600' : 'text-red-600'}
+              />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -229,26 +221,15 @@ export default function Reports({
 
           {vatRegistered !== false && (
           <TabsContent value="vat" className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <Card>
-                <CardHeader className="pb-2"><CardTitle className="text-sm text-gray-500">ALV-velka</CardTitle></CardHeader>
-                <CardContent><p className="text-2xl font-bold text-red-600">{formatMoney(report.vatPayable)}</p></CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2"><CardTitle className="text-sm text-gray-500">ALV-saatava</CardTitle></CardHeader>
-                <CardContent><p className="text-2xl font-bold text-green-600">{formatMoney(report.vatDeductible)}</p></CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2"><CardTitle className="text-sm text-gray-500">Netto-ALV</CardTitle></CardHeader>
-                <CardContent>
-                  <p className={`text-2xl font-bold ${report.vatPayable - report.vatDeductible >= 0 ? 'text-red-600' : 'text-green-600'}`}>
-                    {formatMoney(Math.abs(report.vatPayable - report.vatDeductible))}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {report.vatPayable - report.vatDeductible >= 0 ? 'Maksettavaa' : 'Palautettavaa'}
-                  </p>
-                </CardContent>
-              </Card>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4">
+              <StatTile label="ALV-velka" value={formatMoney(report.vatPayable)} valueClassName="text-red-600" />
+              <StatTile label="ALV-saatava" value={formatMoney(report.vatDeductible)} valueClassName="text-green-600" />
+              <StatTile
+                label="Netto-ALV"
+                value={formatMoney(Math.abs(report.vatPayable - report.vatDeductible))}
+                valueClassName={report.vatPayable - report.vatDeductible >= 0 ? 'text-red-600' : 'text-green-600'}
+                hint={report.vatPayable - report.vatDeductible >= 0 ? 'Maksettavaa' : 'Palautettavaa'}
+              />
             </div>
             <div className="bg-white border rounded-lg p-4">
               <h3 className="text-sm font-bold text-gray-900 mb-3">ALV-erittely</h3>

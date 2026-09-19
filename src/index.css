@@ -73,3 +73,15 @@
     @apply bg-background text-foreground;
   }
 }
+@layer utilities {
+  /*
+   * Sovelluksen korkeus. 100vh on mobiiliselaimissa koko selainikkunan korkeus
+   * osoitepalkkeineen, jolloin nayton alareuna jaa piiloon eika siihen paase
+   * kasiksi kun kuori on overflow-hidden. 100dvh seuraa nakyvaa aluetta;
+   * 100vh jaa varalle selaimille jotka eivat tue dvh-yksikkoa.
+   */
+  .app-shell {
+    height: 100vh;
+    height: 100dvh;
+  }
+}
