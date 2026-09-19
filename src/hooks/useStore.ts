@@ -27,7 +27,9 @@ import {
   saveCashRegisterEntry,
   saveManyPersonalEntries,
   deleteAllPersonalEntries,
+  allocateEntryNumber,
 } from '@/lib/firestore';
+import { highestNumber } from '@/lib/numbering';
 import { deleteAttachment } from '@/lib/storage';
 import { migrateLegacyLocalData, migrateLegacyPersonalEntries } from '@/lib/legacyMigration';
 import { auth } from '@/firebase/config';
@@ -197,11 +199,17 @@ export function useStore() {
   }, []);
 
   const addEntry = useCallback(async (entry: Entry) => {
-    await saveEntry(entry);
+    // Tositteet numeroidaan juoksevasti. Numero varataan vasta tallennuksessa
+    // transaktiolla, jotta kaksi samanaikaista tallennusta ei saa samaa numeroa.
+    // Olemassa olevan tositteen numero sailyy ennallaan.
+    const number = entry.number.trim()
+      ? entry.number.trim()
+      : await allocateEntryNumber(highestNumber(entries.map((e) => e.number)));
+    await saveEntry({ ...entry, number });
     await refreshEntries();
     setLastBackup(new Date().toLocaleTimeString('fi-FI'));
-    showToast('Tosite tallennettu', 'success');
-  }, [refreshEntries, showToast]);
+    showToast(`Tosite ${number} tallennettu`, 'success');
+  }, [entries, refreshEntries, showToast]);
 
   const removeEntry = useCallback(async (id: string) => {
     const entry = await getEntryById(id);

@@ -109,7 +109,7 @@ export default function RecurringEntries({ accounts, onGenerateEntry }: Recurrin
     const entry: Entry = {
       id: generateId(),
       date,
-      number: '',
+      number: '', // juokseva tositenumero varataan tallennuksessa
       description: item.description,
       lines: item.lines.map((l) => ({ ...l, id: generateId() })),
       attachments: [],

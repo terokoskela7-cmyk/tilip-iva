@@ -84,7 +84,7 @@ export default function FirstInvoiceGuide({ onCreateEntry, onNavigate, accounts 
     const entry: Entry = {
       id: generateId(),
       date: today(),
-      number: '1',
+      number: '', // juokseva tositenumero varataan tallennuksessa
       description: `Myyntilasku: ${form.customerName} - ${form.serviceDescription}`,
       status: 'confirmed',
       attachments: [],

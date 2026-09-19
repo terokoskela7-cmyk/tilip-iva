@@ -95,7 +95,9 @@ export interface Invoice {
   status: 'draft' | 'sent' | 'paid' | 'overdue';
   notes?: string;
   reference?: string;
-  entryId?: string; // linked accounting entry
+  revenueAccountId?: string; // myyntitili jolle tuotto kirjataan
+  entryId?: string; // myyntikirjaus
+  paymentEntryId?: string; // suorituskirjaus
   createdAt: string;
 }
 

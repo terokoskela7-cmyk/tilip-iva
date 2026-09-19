@@ -10,7 +10,20 @@ import { Receipt, Plus, Trash2, Send, CheckCircle, Users, Download } from 'lucid
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { Invoice, InvoiceLine, Customer, Entry, Account } from '@/types';
-import { getAllInvoices, saveInvoice, deleteInvoice, getAllCustomers, saveCustomer, deleteCustomer } from '@/lib/firestore';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle } from 'lucide-react';
+import {
+  getAllInvoices,
+  saveInvoice,
+  deleteInvoice,
+  getAllCustomers,
+  saveCustomer,
+  deleteCustomer,
+  allocateInvoiceNumber,
+} from '@/lib/firestore';
+import { compareNumbers, highestNumber } from '@/lib/numbering';
+import { buildPaymentEntryDraft, buildSalesEntryDraft } from '@/lib/invoiceEntries';
+import { isRevenue } from '@/lib/ledgerMath';
 
 function generateId(): string {
   return Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
@@ -21,7 +34,7 @@ interface InvoicingProps {
   companyYTunnus: string;
   companyAddress: string;
   accounts: Account[];
-  onCreateEntry: (entry: Entry) => void;
+  onCreateEntry: (entry: Entry) => Promise<void>;
 }
 
 const statusLabels: Record<string, { label: string; color: string }> = {
@@ -43,6 +56,7 @@ export default function Invoicing({ companyName, companyYTunnus, companyAddress,
   const [invDate, setInvDate] = useState('');
   const [invDue, setInvDue] = useState('');
   const [invNotes, setInvNotes] = useState('');
+  const [invRevenueAccountId, setInvRevenueAccountId] = useState('');
   const [invLines, setInvLines] = useState<InvoiceLine[]>([]);
 
   // Customer form
@@ -54,6 +68,7 @@ export default function Invoicing({ companyName, companyYTunnus, companyAddress,
   const [custEmail, setCustEmail] = useState('');
   const [custPhone, setCustPhone] = useState('');
   const [custTerm, setCustTerm] = useState(14);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => { loadData(); }, []);
 
@@ -66,6 +81,9 @@ export default function Invoicing({ companyName, companyYTunnus, companyAddress,
   function openInvoiceModal() {
     const today = new Date().toISOString().split('T')[0];
     const due = new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0];
+    const defaultRevenue = accounts.find((a) => a.number === '3000') ?? accounts.find((a) => isRevenue(a.type));
+    setInvRevenueAccountId(defaultRevenue?.id || '');
+    setError(null);
     setInvCustomerId(customers[0]?.id || '');
     setInvDate(today);
     setInvDue(due);
@@ -97,6 +115,9 @@ export default function Invoicing({ companyName, companyYTunnus, companyAddress,
     setInvLines(invLines.filter((_, i) => i !== index));
   }
 
+  // Juokseva numero on merkkijono, joten lajittelu tehdaan lukuarvon mukaan.
+  const sortedInvoices = [...invoices].sort((a, b) => compareNumbers(b.number, a.number));
+
   const calcTotals = useCallback(() => {
     const totalExcl = invLines.reduce((s, l) => s + l.total, 0);
     const totalVat = invLines.reduce((s, l) => s + l.total * (l.vatRate / 100), 0);
@@ -105,11 +126,17 @@ export default function Invoicing({ companyName, companyYTunnus, companyAddress,
 
   async function saveInvoiceData() {
     const customer = customers.find((c) => c.id === invCustomerId);
-    if (!customer) return;
+    if (!customer) {
+      setError('Valitse asiakas.');
+      return;
+    }
     const { totalExcl, totalVat, totalIncl } = calcTotals();
+    // Laskulla on oltava juokseva tunniste (ALV-laki 209 e §). Numero varataan
+    // tilikirjakohtaisesta laskurista transaktiolla, jotta se ei voi toistua.
+    const number = await allocateInvoiceNumber(highestNumber(invoices.map((i) => i.number)));
     const invoice: Invoice = {
       id: generateId(),
-      number: `L${Date.now().toString().slice(-6)}`,
+      number,
       date: invDate,
       dueDate: invDue,
       customerId: customer.id,
@@ -124,11 +151,17 @@ export default function Invoicing({ companyName, companyYTunnus, companyAddress,
       totalInclVat: totalIncl,
       status: 'draft',
       notes: invNotes,
+      revenueAccountId: invRevenueAccountId || undefined,
       createdAt: new Date().toISOString(),
     };
-    await saveInvoice(invoice);
-    await loadData();
-    setInvoiceModal(false);
+    try {
+      await saveInvoice(invoice);
+      await loadData();
+      setInvoiceModal(false);
+    } catch (e) {
+      console.error('Laskun tallennus epäonnistui:', e);
+      setError('Laskun tallennus epäonnistui. Yritä uudelleen.');
+    }
   }
 
   async function saveCustomerData() {
@@ -143,51 +176,101 @@ export default function Invoicing({ companyName, companyYTunnus, companyAddress,
       phone: custPhone || undefined,
       paymentTerm: custTerm,
     };
-    await saveCustomer(customer);
-    await loadData();
-    setCustomerModal(false);
+    try {
+      await saveCustomer(customer);
+      await loadData();
+      setCustomerModal(false);
+    } catch (e) {
+      console.error('Asiakkaan tallennus epäonnistui:', e);
+      setError('Asiakkaan tallennus epäonnistui. Yritä uudelleen.');
+    }
+  }
+
+  /**
+   * Myyntikirjaus laskun paivamaaralla. Luodaan kerran; jos lasku on jo
+   * kirjattu, palautetaan olemassa oleva tositetunniste.
+   */
+  async function ensureSalesEntry(inv: Invoice): Promise<string | null> {
+    if (inv.entryId) return inv.entryId;
+
+    const draft = buildSalesEntryDraft(inv, accounts, generateId);
+    if (!draft.ok) {
+      setError(draft.error);
+      return null;
+    }
+
+    const entryId = generateId();
+    const now = new Date().toISOString();
+    await onCreateEntry({
+      id: entryId,
+      date: draft.draft.date,
+      number: '', // juokseva tositenumero varataan tallennuksessa
+      description: draft.draft.description,
+      lines: draft.draft.lines,
+      attachments: [],
+      status: 'confirmed',
+      createdAt: now,
+      updatedAt: now,
+    });
+    return entryId;
   }
 
   async function markSent(id: string) {
     const inv = invoices.find((i) => i.id === id);
     if (!inv) return;
-    await saveInvoice({ ...inv, status: 'sent' });
-    await loadData();
+    setError(null);
+
+    try {
+      const entryId = await ensureSalesEntry(inv);
+      if (!entryId) return;
+
+      await saveInvoice({ ...inv, status: 'sent', entryId });
+      await loadData();
+    } catch (e) {
+      console.error('Laskun kirjaus epäonnistui:', e);
+      setError('Laskun kirjaus epäonnistui. Yritä uudelleen.');
+    }
   }
 
   async function markPaid(id: string) {
     const inv = invoices.find((i) => i.id === id);
     if (!inv) return;
-    await saveInvoice({ ...inv, status: 'paid' });
+    setError(null);
 
-    // Create accounting entry automatically
-    const revenueAccount = accounts.find((a) => a.type === 'revenue');
-    const vatAccount = accounts.find((a) => a.number === '29391');
-    const receivableAccount = accounts.find((a) => a.number === '1910');
+    try {
+      // Myynti kirjataan laskun paivamaaralla, suoritus vasta maksupaivalla.
+      const entryId = await ensureSalesEntry(inv);
+      if (!entryId) return;
 
-    if (revenueAccount && receivableAccount) {
-      const lines: any[] = [
-        { id: generateId(), accountId: receivableAccount.id, accountNumber: receivableAccount.number, accountName: receivableAccount.name, debit: inv.totalInclVat, credit: 0, description: `Lasku ${inv.number}` },
-        { id: generateId(), accountId: revenueAccount.id, accountNumber: revenueAccount.number, accountName: revenueAccount.name, debit: 0, credit: inv.totalExclVat, description: `Myynti ${inv.customerName}` },
-      ];
-      if (vatAccount && inv.totalVat > 0) {
-        lines.push({ id: generateId(), accountId: vatAccount.id, accountNumber: vatAccount.number, accountName: vatAccount.name, debit: 0, credit: inv.totalVat, description: 'ALV 25,5%' });
+      let paymentEntryId = inv.paymentEntryId;
+      if (!paymentEntryId) {
+        const paymentDate = new Date().toISOString().split('T')[0];
+        const draft = buildPaymentEntryDraft(inv, accounts, paymentDate, generateId);
+        if (!draft.ok) {
+          setError(draft.error);
+          return;
+        }
+        paymentEntryId = generateId();
+        const now = new Date().toISOString();
+        await onCreateEntry({
+          id: paymentEntryId,
+          date: draft.draft.date,
+          number: '',
+          description: draft.draft.description,
+          lines: draft.draft.lines,
+          attachments: [],
+          status: 'confirmed',
+          createdAt: now,
+          updatedAt: now,
+        });
       }
 
-      const entry: Entry = {
-        id: generateId(),
-        date: new Date().toISOString().split('T')[0],
-        number: '',
-        description: `Lasku ${inv.number} - ${inv.customerName}`,
-        lines,
-        attachments: [],
-        status: 'confirmed',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      onCreateEntry(entry);
+      await saveInvoice({ ...inv, status: 'paid', entryId, paymentEntryId });
+      await loadData();
+    } catch (e) {
+      console.error('Suorituksen kirjaus epäonnistui:', e);
+      setError('Suorituksen kirjaus epäonnistui. Yritä uudelleen.');
     }
-    await loadData();
   }
 
   function generatePDF(invoice: Invoice) {
@@ -260,6 +343,12 @@ export default function Invoicing({ companyName, companyYTunnus, companyAddress,
       </div>
 
       <div className="flex-1 overflow-y-auto p-4">
+        {error && (
+          <Alert variant="destructive" className="max-w-4xl mx-auto mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
         {view === 'invoices' ? (
           <div className="max-w-4xl mx-auto space-y-2">
             {invoices.length === 0 && (
@@ -268,7 +357,7 @@ export default function Invoicing({ companyName, companyYTunnus, companyAddress,
                 <p>Ei laskuja. Luo ensimmäinen lasku!</p>
               </div>
             )}
-            {invoices.map((inv) => (
+            {sortedInvoices.map((inv) => (
               <Card key={inv.id}>
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
@@ -344,6 +433,18 @@ export default function Invoicing({ companyName, companyYTunnus, companyAddress,
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Laskutuspäivä</Label><Input type="date" value={invDate} onChange={(e) => setInvDate(e.target.value)} /></div>
               <div><Label>Eräpäivä</Label><Input type="date" value={invDue} onChange={(e) => setInvDue(e.target.value)} /></div>
+            </div>
+            <div>
+              <Label>Myyntitili</Label>
+              <Select value={invRevenueAccountId} onValueChange={setInvRevenueAccountId}>
+                <SelectTrigger><SelectValue placeholder="Valitse myyntitili" /></SelectTrigger>
+                <SelectContent>
+                  {accounts.filter((a) => isRevenue(a.type)).map((a) => (
+                    <SelectItem key={a.id} value={a.id}>{a.number} - {a.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-gray-500 mt-1">Tilille kirjataan laskun veroton myynti.</p>
             </div>
             <div>
               <div className="flex justify-between items-center mb-1">

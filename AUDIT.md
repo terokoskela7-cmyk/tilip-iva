@@ -41,8 +41,11 @@ tietokannasta, eli se tuottaa käytännössä tyhjän varmuuskopion.
 | H3 Raportit eivät rajaa tilikautta | ✅ Korjattu |
 | H4 Negatiiviset saldot nollataan | ✅ Korjattu |
 | H5 Tase ei sisällä tilikauden tulosta | ✅ Korjattu |
-| L3 Ei yhtään testiä | 🟡 Laskentalogiikka testattu, CI ajaa testit |
-| H2, H6, H7, M1–M6, M8–M9, L1, L2, L4–L9 | ⬜ Avoin |
+| H2 Tositenumerointi ei ole luotettava | ✅ Korjattu |
+| H6 Laskun numerointi ei ole juokseva | ✅ Korjattu |
+| H7 Laskun maksukirjaus on väärin | ✅ Korjattu |
+| L3 Ei yhtään testiä | 🟡 Laskentalogiikka testattu (50 testiä), CI ajaa testit |
+| M1–M6, M8–M9, L1, L2, L4–L9 | ⬜ Avoin |
 
 **Kaikki kirjoitukset menevät nyt Firestoreen.** `src/lib/db.ts` (IndexedDB) ja `src/lib/seed.ts`
 on poistettu; `src/lib/legacyMigration.ts` siirtää aiemmin paikallisesti tallennetun aineiston
@@ -153,7 +156,7 @@ Jos käyttäjä syöttää debet 100 € tilille A ja kredit 100 € riville jol
 validointi menee läpi ja tallennettu tosite on 100 € epätasapainossa. Kahdenkertaisen kirjanpidon
 perusinvariantti rikkoutuu hiljaisesti.
 
-### H2. Tositenumerointi ei ole luotettava
+### H2. Tositenumerointi ei ole luotettava — ✅ korjattu
 - `EntryModal.tsx:27-31` — `max(numerot)+1`, ei uniikkiustarkistusta eikä varausta. Kaksi
   samanaikaista välilehteä tuottaa saman numeron.
 - `Invoicing.tsx:182` ja `RecurringEntries.tsx:111` luovat tositteita kentällä `number: ''`.
@@ -185,7 +188,7 @@ Oma pääoma lasketaan pelkistä pääomatileistä; tilikauden tulosta ei viedä
 kirjanpidossa on yhtään tulos- tai kulutapahtumaa, tase ei täsmää ja käyttäjälle näytetään punaisena
 **"Tase ei täsmää"** vaikka kirjanpito olisi virheetön. Tarkistusindikaattori on käyttökelvoton.
 
-### H6. Laskun numerointi ei ole juokseva
+### H6. Laskun numerointi ei ole juokseva — ✅ korjattu
 `src/components/Invoicing.tsx:111`
 
 ```ts
@@ -195,7 +198,7 @@ number: `L${Date.now().toString().slice(-6)}`
 ALV-lain 209 e § edellyttää laskulta juoksevaa tunnistetta. Aikaleiman viimeiset kuusi numeroa
 eivät ole juoksevia (arvo pyörähtää ympäri ~16,7 minuutin välein) eivätkä taatusti uniikkeja.
 
-### H7. Laskun maksukirjaus on väärin
+### H7. Laskun maksukirjaus on väärin — ✅ korjattu
 `src/components/Invoicing.tsx:155-190`
 
 `markPaid` kirjaa myyntisaamiset debet / myynti kredit + ALV vasta kun lasku merkitään maksetuksi,
@@ -334,10 +337,10 @@ Merkittävimmät sovelluskoodissa:
 Lint ei ole osa CI:tä, joten nämä eivät estä julkaisua.
 
 ### L3. Ei yhtään testiä — 🟡 osittain korjattu
-Repossa ei ollut testejä eikä testiajuria. Nyt `npm test` ajaa 36 testiä
+Repossa ei ollut testejä eikä testiajuria. Nyt `npm test` ajaa 50 testiä
 (`tests/`, Noden oma test runner + esbuild, ei uusia riippuvuuksia): tilikausien muodostus,
-senttipohjainen saldolaskenta, tuloslaskelma/tase/ALV yhdelle tilikaudelle ja tositteen
-validointi. CI ajaa testit ennen buildia. Kattamatta ovat yhä komponenttitaso ja
+senttipohjainen saldolaskenta, tuloslaskelma/tase/ALV yhdelle tilikaudelle, tositteen
+validointi, juokseva numerointi ja myyntilaskun kirjausketju. CI ajaa testit ennen buildia. Kattamatta ovat yhä komponenttitaso ja
 CSV-jäsennys, eikä lint ole vielä osa CI:tä.
 
 ### L4. Paikallinen kehitys vaatii emulaattorit — dokumentoimatta
@@ -406,11 +409,14 @@ tuotantoympäristöjen erottamisen.
    tilikauden tulos taseeseen.~~ Laskenta eriytetty `lib/reportModel.ts`:ään ja
    tilikausilogiikka `lib/fiscalYear.ts`:ään; molemmat testattu.
 
+7. ~~**H2 + H6 + H7** — juokseva tosite- ja laskunumerointi sekä oikea laskun kirjausketju.~~
+   Numerot varataan Firestoren transaktiolla tilikirjakohtaisesta laskurista
+   (`lib/numbering.ts`), ja laskun kirjaukset rakentaa `lib/invoiceEntries.ts`.
+
 ### Seuraavaksi
 
-7. **H2 + H6 + H7** — juokseva tosite- ja laskunumerointi sekä oikea laskun kirjausketju.
 8. **M1 + M2 + M3–M6** — oman talouden luokittelusäännöt, budjetin kategoriat ja CSV-jäsennys.
 9. **M8 + M9** — YEL- ja verolaskurin kertoimet ajan tasalle.
 10. **L1** — lockfile viralliseen rekisteriin.
-11. **L3** — osittain tehty: `npm test` ajaa laskentalogiikan testit (36 kpl) ja CI ajaa ne
+11. **L3** — osittain tehty: `npm test` ajaa laskentalogiikan testit (50 kpl) ja CI ajaa ne
     ennen buildia. Jäljellä lint CI:hin ja testit myös komponenttitasolle.

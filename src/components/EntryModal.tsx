@@ -11,6 +11,7 @@ import { uploadAttachment, deleteAttachment } from '@/lib/storage';
 import type { Entry, EntryLine, Account, Attachment } from '@/types';
 import { fromCents } from '@/lib/ledgerMath';
 import { validateEntryDraft } from '@/lib/entryValidation';
+import { nextNumberPreview } from '@/lib/numbering';
 
 interface EntryModalProps {
   open: boolean;
@@ -23,12 +24,6 @@ interface EntryModalProps {
 
 function generateId(): string {
   return Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
-}
-
-function getNextEntryNumber(entries: Entry[]): string {
-  if (entries.length === 0) return '1';
-  const nums = entries.map((e) => parseInt(e.number, 10)).filter((n) => !isNaN(n));
-  return (Math.max(...nums, 0) + 1).toString();
 }
 
 export default function EntryModal({ open, onOpenChange, onSave, editingEntry, accounts, existingEntries }: EntryModalProps) {
@@ -44,14 +39,16 @@ export default function EntryModal({ open, onOpenChange, onSave, editingEntry, a
   useEffect(() => {
     if (editingEntry) {
       setDate(editingEntry.date);
-      setNumber(editingEntry.number);
+      // Ennen juoksevaa numerointia luoduilla tositteilla numero voi puuttua.
+      // Silloin naytetaan seuraava vapaa numero ja se varataan tallennuksessa.
+      setNumber(editingEntry.number.trim() || nextNumberPreview(existingEntries.map((e) => e.number)));
       setDescription(editingEntry.description);
       setLines(editingEntry.lines.map((l) => ({ ...l })));
       setAttachments(editingEntry.attachments ? [...editingEntry.attachments] : []);
     } else {
       const today = new Date().toISOString().split('T')[0];
       setDate(today);
-      setNumber(getNextEntryNumber(existingEntries));
+      setNumber(nextNumberPreview(existingEntries.map((e) => e.number)));
       setDescription('');
       setLines([createEmptyLine(), createEmptyLine()]);
       setAttachments([]);
@@ -66,6 +63,7 @@ export default function EntryModal({ open, onOpenChange, onSave, editingEntry, a
   // Täsmäytys ja tallennus lasketaan samoista riveistä, jotta epätasapainoinen
   // tosite ei pääse läpi. Ks. lib/entryValidation.
   const check = useMemo(() => validateEntryDraft(lines, date, number), [lines, date, number]);
+  const keepsNumber = Boolean(editingEntry?.number.trim());
   const { postedLines, totalDebitCents, totalCreditCents, balanced } = check;
   // Array.sort muuttaa taulukkoa paikallaan, joten propsia ei saa lajitella suoraan.
   const sortedAccounts = useMemo(
@@ -177,7 +175,9 @@ export default function EntryModal({ open, onOpenChange, onSave, editingEntry, a
       const entry: Entry = {
         id: entryId,
         date,
-        number,
+        // Numero sailyy vain jos tositteella on jo sellainen. Muuten se
+        // varataan tallennuksessa juoksevasti, ja lomakkeen arvo on ennakkotieto.
+        number: keepsNumber ? number : '',
         description,
         lines: postedLines,
         attachments: uploadedAttachments,
@@ -221,7 +221,10 @@ export default function EntryModal({ open, onOpenChange, onSave, editingEntry, a
             </div>
             <div>
               <Label htmlFor="entry-number">Tositenumero</Label>
-              <Input id="entry-number" value={number} onChange={(e) => setNumber(e.target.value)} className="mt-1" />
+              <Input id="entry-number" value={number} readOnly disabled className="mt-1 bg-gray-50" />
+              <p className="text-xs text-gray-500 mt-1">
+                {keepsNumber ? 'Tositenumero ei muutu' : 'Annetaan juoksevasti tallennettaessa'}
+              </p>
             </div>
             <div>
               <Label htmlFor="entry-status">Tila</Label>

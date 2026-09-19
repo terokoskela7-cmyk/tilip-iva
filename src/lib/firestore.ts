@@ -9,6 +9,7 @@ import {
   query,
   orderBy,
   writeBatch,
+  runTransaction,
   type CollectionReference,
   type DocumentReference,
 } from 'firebase/firestore';
@@ -142,7 +143,10 @@ export async function deleteCustomer(id: string): Promise<void> {
 
 // === INVOICES ===
 export async function getAllInvoices(): Promise<Invoice[]> {
-  const snap = await getDocs(query(ledgerCol('invoices'), orderBy('number')));
+  // Juokseva numero on merkkijono, jossa "10" jarjestyisi ennen arvoa "9",
+  // joten lista haetaan paivamaaran mukaan ja lajitellaan tarvittaessa
+  // numerojarjestykseen nakymassa.
+  const snap = await getDocs(query(ledgerCol('invoices'), orderBy('date', 'desc')));
   return snap.docs.map((d) => d.data() as Invoice);
 }
 
@@ -222,6 +226,35 @@ export async function saveCashRegisterEntry(entry: CashRegisterEntry): Promise<v
 
 export async function deleteCashRegisterEntry(id: string): Promise<void> {
   await deleteDoc(ledgerDoc('cashRegister', id));
+}
+
+// === JUOKSEVAT NUMEROT ===
+/**
+ * Varaa seuraavan juoksevan numeron tilikirjakohtaisesta laskurista.
+ *
+ * Transaktio takaa, etta kaksi samanaikaista tallennusta (esimerkiksi kaksi
+ * valilehtea) eivat saa samaa numeroa. Laskuri alustetaan tarvittaessa jo
+ * olemassa olevan aineiston suurimmasta numerosta, jonka kutsuja antaa
+ * seed-arvona, joten vanhoja numeroita ei kayteta uudelleen.
+ */
+async function allocateCounter(name: string, seed: number): Promise<number> {
+  const ref = ledgerDoc('counters', name);
+  return runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    const stored = snap.exists() ? Number(snap.data().value) : 0;
+    const current = Number.isSafeInteger(stored) ? stored : 0;
+    const next = Math.max(current, Number.isSafeInteger(seed) ? seed : 0) + 1;
+    tx.set(ref, { value: next });
+    return next;
+  });
+}
+
+export async function allocateEntryNumber(seed: number): Promise<string> {
+  return String(await allocateCounter('entryNumber', seed));
+}
+
+export async function allocateInvoiceNumber(seed: number): Promise<string> {
+  return String(await allocateCounter('invoiceNumber', seed));
 }
 
 // === BATCH OPERATIONS ===
@@ -445,7 +478,7 @@ export async function exportAllData(): Promise<Record<string, unknown>> {
 
 // === RESET ===
 export async function resetDatabase(): Promise<void> {
-  const cols = ['accounts', 'entries', 'customers', 'invoices', 'recurringEntries', 'vatPeriods', 'bankAccounts', 'bankTransactions', 'cashRegister', 'personalEntries', 'budgets'];
+  const cols = ['accounts', 'entries', 'customers', 'invoices', 'recurringEntries', 'vatPeriods', 'bankAccounts', 'bankTransactions', 'cashRegister', 'personalEntries', 'budgets', 'counters'];
   const ledgerId = getActiveLedgerId();
   for (const colName of cols) {
     const snap = await getDocs(specificLedgerCol(ledgerId, colName));
