@@ -177,10 +177,9 @@ export function MainApp() {
             <Reports
               entries={store.entries}
               accounts={store.accounts}
-              accountBalance={store.accountBalance}
-              totalVatPayable={store.totalVatPayable}
-              totalVatDeductible={store.totalVatDeductible}
               vatRegistered={store.company?.vatRegistered ?? true}
+              fiscalYearStart={store.company?.fiscalYearStart}
+              fiscalYearEnd={store.company?.fiscalYearEnd}
             />
           </Suspense>
         )}

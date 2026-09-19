@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,8 @@ import { Trash2, Plus, Save, Paperclip, X, ImageIcon, Loader2 } from 'lucide-rea
 import { useAuth } from '@/context/AuthContext';
 import { uploadAttachment, deleteAttachment } from '@/lib/storage';
 import type { Entry, EntryLine, Account, Attachment } from '@/types';
+import { fromCents } from '@/lib/ledgerMath';
+import { validateEntryDraft } from '@/lib/entryValidation';
 
 interface EntryModalProps {
   open: boolean;
@@ -60,6 +62,16 @@ export default function EntryModal({ open, onOpenChange, onSave, editingEntry, a
   function createEmptyLine(): EntryLine {
     return { id: generateId(), accountId: '', accountNumber: '', accountName: '', debit: 0, credit: 0, description: '' };
   }
+
+  // Täsmäytys ja tallennus lasketaan samoista riveistä, jotta epätasapainoinen
+  // tosite ei pääse läpi. Ks. lib/entryValidation.
+  const check = useMemo(() => validateEntryDraft(lines, date, number), [lines, date, number]);
+  const { postedLines, totalDebitCents, totalCreditCents, balanced } = check;
+  // Array.sort muuttaa taulukkoa paikallaan, joten propsia ei saa lajitella suoraan.
+  const sortedAccounts = useMemo(
+    () => [...accounts].sort((a, b) => a.number.localeCompare(b.number)),
+    [accounts]
+  );
 
   function addLine() {
     setLines((prev) => [...prev, createEmptyLine()]);
@@ -128,19 +140,8 @@ export default function EntryModal({ open, onOpenChange, onSave, editingEntry, a
   }
 
   function validate(): boolean {
-    const errs: string[] = [];
-    if (!date) errs.push('Päivämäärä puuttuu');
-    if (!number) errs.push('Tositenumero puuttuu');
-    if (lines.length < 2) errs.push('Vähintään 2 riviä vaaditaan');
-    const totalDebit = lines.reduce((s, l) => s + (Number(l.debit) || 0), 0);
-    const totalCredit = lines.reduce((s, l) => s + (Number(l.credit) || 0), 0);
-    if (Math.abs(totalDebit - totalCredit) > 0.01) {
-      errs.push(`Debet (${totalDebit.toFixed(2)}) ja Kredit (${totalCredit.toFixed(2)}) eivät täsmää`);
-    }
-    const hasAccount = lines.some((l) => l.accountId);
-    if (!hasAccount) errs.push('Valitse vähintään yksi tili');
-    setErrors(errs);
-    return errs.length === 0;
+    setErrors(check.errors);
+    return check.errors.length === 0;
   }
 
   async function handleSave() {
@@ -178,7 +179,7 @@ export default function EntryModal({ open, onOpenChange, onSave, editingEntry, a
         date,
         number,
         description,
-        lines: lines.filter((l) => l.accountId),
+        lines: postedLines,
         attachments: uploadedAttachments,
         status: editingEntry?.status || 'confirmed',
         createdAt: editingEntry?.createdAt || new Date().toISOString(),
@@ -194,9 +195,6 @@ export default function EntryModal({ open, onOpenChange, onSave, editingEntry, a
     }
   }
 
-  const totalDebit = lines.reduce((s, l) => s + (Number(l.debit) || 0), 0);
-  const totalCredit = lines.reduce((s, l) => s + (Number(l.credit) || 0), 0);
-  const balanced = Math.abs(totalDebit - totalCredit) < 0.01;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -263,7 +261,7 @@ export default function EntryModal({ open, onOpenChange, onSave, editingEntry, a
                         <SelectValue placeholder="Valitse tili" />
                       </SelectTrigger>
                       <SelectContent>
-                        {accounts.sort((a, b) => a.number.localeCompare(b.number)).map((acc) => (
+                        {sortedAccounts.map((acc) => (
                           <SelectItem key={acc.id} value={acc.id}>{acc.number} - {acc.name}</SelectItem>
                         ))}
                       </SelectContent>
@@ -301,10 +299,10 @@ export default function EntryModal({ open, onOpenChange, onSave, editingEntry, a
               <span className="text-sm font-medium">Yhteensä:</span>
               <div className="flex gap-6 text-sm">
                 <span className={balanced ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
-                  Debet: {totalDebit.toFixed(2)} €
+                  Debet: {fromCents(totalDebitCents).toFixed(2)} €
                 </span>
                 <span className={balanced ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
-                  Kredit: {totalCredit.toFixed(2)} €
+                  Kredit: {fromCents(totalCreditCents).toFixed(2)} €
                 </span>
               </div>
             </div>

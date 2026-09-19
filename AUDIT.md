@@ -37,7 +37,12 @@ tietokannasta, eli se tuottaa käytännössä tyhjän varmuuskopion.
 | M7 CSV-tuonti kirjoittaa rivi kerrallaan | ✅ Korjattu |
 | M10 Migraatio ylittää batch-rajan | ✅ Korjattu |
 | M11 Turhia Firestore-lukuja | ✅ Korjattu |
-| H1–H7, M1–M6, M8–M9, L1–L9 | ⬜ Avoin |
+| H1 Epätasapainoinen tosite voi tallentua | ✅ Korjattu |
+| H3 Raportit eivät rajaa tilikautta | ✅ Korjattu |
+| H4 Negatiiviset saldot nollataan | ✅ Korjattu |
+| H5 Tase ei sisällä tilikauden tulosta | ✅ Korjattu |
+| L3 Ei yhtään testiä | 🟡 Laskentalogiikka testattu, CI ajaa testit |
+| H2, H6, H7, M1–M6, M8–M9, L1, L2, L4–L9 | ⬜ Avoin |
 
 **Kaikki kirjoitukset menevät nyt Firestoreen.** `src/lib/db.ts` (IndexedDB) ja `src/lib/seed.ts`
 on poistettu; `src/lib/legacyMigration.ts` siirtää aiemmin paikallisesti tallennetun aineiston
@@ -134,7 +139,7 @@ käsittely puuttuu muualta.
 
 ## Korkeat — kirjanpidon oikeellisuus
 
-### H1. Epätasapainoinen tosite voi tallentua
+### H1. Epätasapainoinen tosite voi tallentua — ✅ korjattu
 `src/components/EntryModal.tsx:127-142` vs `:174`
 
 `validate()` laskee debet/kredit-summat **kaikilta** riveiltä, mutta tallennus pudottaa rivit joilta
@@ -154,7 +159,7 @@ perusinvariantti rikkoutuu hiljaisesti.
 - `Invoicing.tsx:182` ja `RecurringEntries.tsx:111` luovat tositteita kentällä `number: ''`.
   Tositteet jäävät ilman numeroa, eikä niitä löydä haulla.
 
-### H3. Raportit eivät rajaa tilikautta lainkaan
+### H3. Raportit eivät rajaa tilikautta lainkaan — ✅ korjattu
 `src/components/Reports.tsx:19, 83`
 
 `period`-tila on kovakoodattu arvoon `'2024'`, ja ainoa painike asettaa saman arvon uudelleen.
@@ -162,7 +167,7 @@ Tilaa ei käytetä missään laskennassa. Tuloslaskelma ja tase kattavat **koko 
 riippumatta tilikaudesta. Tilikauden tulos ja tase ovat siis järjestelmällisesti vääriä heti
 toisesta tilikaudesta alkaen.
 
-### H4. Negatiiviset saldot nollataan raporteissa
+### H4. Negatiiviset saldot nollataan raporteissa — ✅ korjattu
 `src/components/Reports.tsx:26-50`
 
 ```ts
@@ -173,7 +178,7 @@ Negatiivinen saldo — luottotilinen pankkitili, hyvityslasku, tappiollinen oma 
 kirjaus — muuttuu nollaksi. Virheet katoavat näkyvistä juuri niiltä riveiltä joilla ne pitäisi
 havaita, ja loppusummat ovat vääriä.
 
-### H5. Tase ei sisällä tilikauden tulosta
+### H5. Tase ei sisällä tilikauden tulosta — ✅ korjattu
 `src/components/Reports.tsx:47-52, 162-164`
 
 Oma pääoma lasketaan pelkistä pääomatileistä; tilikauden tulosta ei viedä taseeseen. Heti kun
@@ -328,10 +333,12 @@ Merkittävimmät sovelluskoodissa:
 
 Lint ei ole osa CI:tä, joten nämä eivät estä julkaisua.
 
-### L3. Ei yhtään testiä
-Repossa ei ole testejä eikä testiajuria. Kirjanpitosovelluksessa vähintään debet/kredit-täsmäytys,
-saldolaskenta, ALV-erittely ja CSV-jäsennys kuuluisivat yksikkötestien piiriin. CI
-(`.github/workflows/deploy.yml`) ajaa vain `npm run build` ja deployaa suoraan produktioon.
+### L3. Ei yhtään testiä — 🟡 osittain korjattu
+Repossa ei ollut testejä eikä testiajuria. Nyt `npm test` ajaa 36 testiä
+(`tests/`, Noden oma test runner + esbuild, ei uusia riippuvuuksia): tilikausien muodostus,
+senttipohjainen saldolaskenta, tuloslaskelma/tase/ALV yhdelle tilikaudelle ja tositteen
+validointi. CI ajaa testit ennen buildia. Kattamatta ovat yhä komponenttitaso ja
+CSV-jäsennys, eikä lint ole vielä osa CI:tä.
 
 ### L4. Paikallinen kehitys vaatii emulaattorit — dokumentoimatta
 `src/firebase/config.ts:21-29` kytkeytyy emulaattoreihin aina kun `DEV` tai hostname on
@@ -393,12 +400,17 @@ tuotantoympäristöjen erottamisen.
    kertaluonteinen migraatio vanhasta IndexedDB:stä ja localStoragesta lisätty. Samalla
    korjattu M7 (eräkirjoitus), M10 (batch-rajan pilkkominen) ja M11 (turhat luvut).
 
+5. ~~**H1** — estä epätasapainoisen tositteen tallennus.~~ Validointi eriytetty
+   `lib/entryValidation.ts`:ään ja tehdään tasan niistä riveistä jotka tallennetaan.
+6. ~~**H3 + H4 + H5** — raporttien tilikausirajaus, negatiivisten saldojen säilytys,
+   tilikauden tulos taseeseen.~~ Laskenta eriytetty `lib/reportModel.ts`:ään ja
+   tilikausilogiikka `lib/fiscalYear.ts`:ään; molemmat testattu.
+
 ### Seuraavaksi
 
-5. **H1** — estä epätasapainoisen tositteen tallennus (validoi samoilta riveiltä jotka tallennetaan).
-6. **H3 + H4 + H5** — raporttien tilikausirajaus, negatiivisten saldojen säilytys, tilikauden tulos taseeseen.
 7. **H2 + H6 + H7** — juokseva tosite- ja laskunumerointi sekä oikea laskun kirjausketju.
 8. **M1 + M2 + M3–M6** — oman talouden luokittelusäännöt, budjetin kategoriat ja CSV-jäsennys.
 9. **M8 + M9** — YEL- ja verolaskurin kertoimet ajan tasalle.
 10. **L1** — lockfile viralliseen rekisteriin.
-11. **L3** — yksikkötestit laskentalogiikalle sekä lint + typecheck CI:hin ennen deployta.
+11. **L3** — osittain tehty: `npm test` ajaa laskentalogiikan testit (36 kpl) ja CI ajaa ne
+    ennen buildia. Jäljellä lint CI:hin ja testit myös komponenttitasolle.
