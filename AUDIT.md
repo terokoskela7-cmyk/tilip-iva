@@ -44,8 +44,14 @@ tietokannasta, eli se tuottaa käytännössä tyhjän varmuuskopion.
 | H2 Tositenumerointi ei ole luotettava | ✅ Korjattu |
 | H6 Laskun numerointi ei ole juokseva | ✅ Korjattu |
 | H7 Laskun maksukirjaus on väärin | ✅ Korjattu |
-| L3 Ei yhtään testiä | 🟡 Laskentalogiikka testattu (50 testiä), CI ajaa testit |
-| M1–M6, M8–M9, L1, L2, L4–L9 | ⬜ Avoin |
+| M1 Yli 500 € luokitellaan palkaksi | ✅ Korjattu |
+| M2 Budjetti tuntee vain 8 kategoriaa 13:sta | ✅ Korjattu |
+| M3 CSV-summien jäsennys rikkoo pisteelliset formaatit | ✅ Korjattu |
+| M4 CSV-jäsennys ei kestä lainausmerkkejä | ✅ Korjattu |
+| M5 Tuonti ei tunnista duplikaatteja | ✅ Korjattu |
+| M6 Kuollut haarautuminen päivämäärissä | ✅ Korjattu |
+| L3 Ei yhtään testiä | 🟡 Laskentalogiikka testattu (79 testiä), CI ajaa testit |
+| M8–M9, L1, L2, L4–L9 | ⬜ Avoin |
 
 **Kaikki kirjoitukset menevät nyt Firestoreen.** `src/lib/db.ts` (IndexedDB) ja `src/lib/seed.ts`
 on poistettu; `src/lib/legacyMigration.ts` siirtää aiemmin paikallisesti tallennetun aineiston
@@ -218,7 +224,7 @@ päälle piirretty dashboardin saldo ovat laitekohtaisia eivätkä synkronoidu.
 
 ## Keskitaso
 
-### M1. Yli 500 € tapahtuma luokitellaan palkaksi
+### M1. Yli 500 € tapahtuma luokitellaan palkaksi — ✅ korjattu
 `src/components/PersonalFinance.tsx:312-315`
 
 ```ts
@@ -229,14 +235,14 @@ Sääntö ajetaan **ennen** avainsanatunnistusta, joten mikä tahansa yli 500 �
 kaikki muut säännöt. Yhdessä etumerkkikäsittelyn kanssa tämä on selvästi yleisin syy
 virheluokitteluun tuonnissa.
 
-### M2. Budjetti tuntee vain 8 kategoriaa 13:sta
+### M2. Budjetti tuntee vain 8 kategoriaa 13:sta — ✅ korjattu
 `src/components/BudgetPage.tsx:24-33` vs `src/components/PersonalFinance.tsx:108-122`
 
 Kategoriat `children`, `travel`, `insurance`, `hobbies` ja `bills` puuttuvat budjetista. Niihin
 luokitellut menot pudotetaan hiljaisesti toteumasta (`BudgetPage.tsx:57` — `if (cat)`), joten
 budjetti näyttää systemaattisesti todellista pienempää kulutusta.
 
-### M3. CSV-summien jäsennys rikkoo pisteelliset formaatit
+### M3. CSV-summien jäsennys rikkoo pisteelliset formaatit — ✅ korjattu
 `src/components/Banking.tsx:31-38`
 
 ```ts
@@ -247,21 +253,21 @@ budjetti näyttää systemaattisesti todellista pienempää kulutusta.
 Kommentti lupaa tukea muotoa `"1,234.56"`, mutta se muuttuu arvoksi `1.23456`. Suomalainen
 `1 234,56` toimii.
 
-### M4. CSV-jäsennys ei kestä lainausmerkkejä
+### M4. CSV-jäsennys ei kestä lainausmerkkejä — ✅ korjattu
 `src/components/Banking.tsx:71-76`
 
 OP-, Danske- ja generic-formaatit pilkotaan `line.split(',')`-kutsulla. Lainausmerkeissä oleva
 pilkku (yleinen saajan nimessä: `"Yritys Oy, Helsinki"`) siirtää kaikki sarakkeet. Myös
 `\r\n`-rivinvaihdot jäävät kenttien perään Windows-tiedostoissa.
 
-### M5. Tuonti ei tunnista duplikaatteja
+### M5. Tuonti ei tunnista duplikaatteja — ✅ korjattu
 `src/components/Banking.tsx:66-138`
 
 Sama tiliote voi tuoda samat tapahtumat moneen kertaan; mitään tunnistetta ei verrata olemassa
 oleviin. Lisäksi ensimmäinen rivi pudotetaan aina otsikkona (`lines.slice(1)`), joten
 otsikottomasta tiedostosta katoaa ensimmäinen tapahtuma, ja `amount === 0` -tapahtumat ohitetaan.
 
-### M6. Kuollut haarautuminen päivämäärissä
+### M6. Kuollut haarautuminen päivämäärissä — ✅ korjattu
 `src/components/Banking.tsx:52-59`
 
 DD/MM ja MM/DD -haarat palauttavat täsmälleen saman arvon — `if`-ehto on turha ja amerikkalainen
@@ -337,11 +343,10 @@ Merkittävimmät sovelluskoodissa:
 Lint ei ole osa CI:tä, joten nämä eivät estä julkaisua.
 
 ### L3. Ei yhtään testiä — 🟡 osittain korjattu
-Repossa ei ollut testejä eikä testiajuria. Nyt `npm test` ajaa 50 testiä
+Repossa ei ollut testejä eikä testiajuria. Nyt `npm test` ajaa 79 testiä
 (`tests/`, Noden oma test runner + esbuild, ei uusia riippuvuuksia): tilikausien muodostus,
 senttipohjainen saldolaskenta, tuloslaskelma/tase/ALV yhdelle tilikaudelle, tositteen
-validointi, juokseva numerointi ja myyntilaskun kirjausketju. CI ajaa testit ennen buildia. Kattamatta ovat yhä komponenttitaso ja
-CSV-jäsennys, eikä lint ole vielä osa CI:tä.
+validointi, juokseva numerointi, myyntilaskun kirjausketju ja CSV-tuonti. CI ajaa testit ennen buildia. Kattamatta on yhä komponenttitaso, eikä lint ole vielä osa CI:tä.
 
 ### L4. Paikallinen kehitys vaatii emulaattorit — dokumentoimatta
 `src/firebase/config.ts:21-29` kytkeytyy emulaattoreihin aina kun `DEV` tai hostname on
@@ -413,10 +418,13 @@ tuotantoympäristöjen erottamisen.
    Numerot varataan Firestoren transaktiolla tilikirjakohtaisesta laskurista
    (`lib/numbering.ts`), ja laskun kirjaukset rakentaa `lib/invoiceEntries.ts`.
 
+8. ~~**M1 + M2 + M3–M6** — oman talouden luokittelusäännöt, budjetin kategoriat ja CSV-jäsennys.~~
+   CSV-jäsennyksen perusosat ovat `lib/csv.ts`:ssä, tiliotetuonti `lib/bankCsv.ts`:ssä,
+   oman talouden luokittelu `lib/personalCsv.ts`:ssä ja kategoriat `lib/personalCategories.ts`:ssä.
+
 ### Seuraavaksi
 
-8. **M1 + M2 + M3–M6** — oman talouden luokittelusäännöt, budjetin kategoriat ja CSV-jäsennys.
 9. **M8 + M9** — YEL- ja verolaskurin kertoimet ajan tasalle.
 10. **L1** — lockfile viralliseen rekisteriin.
-11. **L3** — osittain tehty: `npm test` ajaa laskentalogiikan testit (50 kpl) ja CI ajaa ne
+11. **L3** — osittain tehty: `npm test` ajaa laskentalogiikan testit (79 kpl) ja CI ajaa ne
     ennen buildia. Jäljellä lint CI:hin ja testit myös komponenttitasolle.

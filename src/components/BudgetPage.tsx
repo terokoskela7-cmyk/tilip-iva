@@ -13,6 +13,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import type { Budget, PersonalEntry } from '@/types';
+// Budjetti kayttaa samoja kategorioita kuin tapahtumat, jottei mikaan
+// menoluokka putoa hiljaisesti pois toteumasta.
+import { expenseCategories as budgetCategories } from '@/lib/personalCategories';
 import { format, subMonths } from 'date-fns';
 import { fi } from 'date-fns/locale';
 
@@ -21,17 +24,6 @@ interface BudgetPageProps {
   entries: PersonalEntry[];
   onSaveBudget: (budget: Budget) => void;
 }
-
-const budgetCategories = [
-  { id: 'ruoka', name: 'Ruoka', color: '#ef4444' },
-  { id: 'asuminen', name: 'Asuminen', color: '#f97316' },
-  { id: 'liikenne', name: 'Liikenne', color: '#f59e0b' },
-  { id: 'viihde', name: 'Viihde', color: '#84cc16' },
-  { id: 'terveys', name: 'Terveys', color: '#10b981' },
-  { id: 'vaatteet', name: 'Vaatteet', color: '#06b6d4' },
-  { id: 'koulutus', name: 'Koulutus', color: '#3b82f6' },
-  { id: 'muut', name: 'Muut', color: '#6366f1' },
-];
 
 function monthKey(date: Date): string {
   return format(date, 'yyyy-MM');

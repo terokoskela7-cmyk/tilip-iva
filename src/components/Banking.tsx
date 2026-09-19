@@ -14,11 +14,13 @@ import {
   deleteBankAccount,
   getAllTransactions,
   saveTransaction,
+  saveManyTransactions,
   deleteTransaction,
   saveEntry,
   getAllEntries,
 } from '@/lib/firestore';
 import type { BankAccount, BankTransaction, BankCSVFormat, Account, Entry, EntryLine } from '@/types';
+import { parseBankCsv, splitNewTransactions } from '@/lib/bankCsv';
 
 interface BankingProps {
   accounts: Account[];
@@ -26,122 +28,6 @@ interface BankingProps {
 
 function generateId(): string {
   return Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
-}
-
-function parseAmount(value: string): number {
-  if (!value) return 0;
-  // Handle Finnish/European formats: "1 234,56" or "1234,56" or "1,234.56"
-  const normalized = value
-    .replace(/\s/g, '')
-    .replace(/\./g, '')
-    .replace(',', '.');
-  return parseFloat(normalized) || 0;
-}
-
-function parseDate(value: string): string {
-  if (!value) return '';
-  // Try DD.MM.YYYY
-  const parts = value.trim().split('.');
-  if (parts.length === 3) {
-    const [d, m, y] = parts;
-    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-  }
-  // Try YYYY-MM-DD
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value.trim())) {
-    return value.trim();
-  }
-  // Try MM/DD/YYYY or DD/MM/YYYY - assume DD/MM/YYYY for European
-  const slashParts = value.trim().split('/');
-  if (slashParts.length === 3) {
-    const [a, b, y] = slashParts;
-    if (parseInt(a, 10) > 12) {
-      return `${y}-${b.padStart(2, '0')}-${a.padStart(2, '0')}`;
-    }
-    return `${y}-${b.padStart(2, '0')}-${a.padStart(2, '0')}`;
-  }
-  return value.trim();
-}
-
-function cleanValue(value: string): string {
-  return value?.replace(/^["']|["']$/g, '').trim() || '';
-}
-
-function parseCSV(csv: string, format: BankCSVFormat, accountId: string): BankTransaction[] {
-  const lines = csv.split('\n').filter((l) => l.trim());
-  const txs: BankTransaction[] = [];
-
-  for (const line of lines.slice(1)) {
-    let cols: string[] = [];
-    if (format === 'nordea' || format === 'handelsbanken') {
-      cols = line.split(';').map(cleanValue);
-    } else {
-      cols = line.split(',').map(cleanValue);
-    }
-    if (cols.length < 3) continue;
-
-    let date = '';
-    let amount = 0;
-    let description = '';
-    let counterparty = '';
-    let reference = '';
-
-    try {
-      if (format === 'nordea') {
-        // Kirjauspäivä;Määrä;Laji;Selitys;Saaja/Maksaja;Viite;Viesti
-        date = parseDate(cols[0]);
-        amount = parseAmount(cols[1]);
-        description = [cols[3], cols[6]].filter(Boolean).join(' ');
-        counterparty = cols[4] || '';
-        reference = cols[5] || '';
-      } else if (format === 'op') {
-        // Kirjauspäivä,Arvopäivä,Määrä,Tapahtumalaji,Selitys,Saaja/Maksaja,Viite
-        date = parseDate(cols[0]);
-        amount = parseAmount(cols[2]);
-        description = [cols[3], cols[4]].filter(Boolean).join(' ');
-        counterparty = cols[5] || '';
-        reference = cols[6] || '';
-      } else if (format === 'danske') {
-        // Date,Amount,Currency,Description,Counterparty,Reference
-        date = parseDate(cols[0]);
-        amount = parseAmount(cols[1]);
-        description = cols[3] || '';
-        counterparty = cols[4] || '';
-        reference = cols[5] || '';
-      } else if (format === 'handelsbanken') {
-        // Transaktionsdatum;Belopp;Valuta;Text;Mottagare/Betalmottagare;Referens
-        date = parseDate(cols[0]);
-        amount = parseAmount(cols[1]);
-        description = cols[3] || '';
-        counterparty = cols[4] || '';
-        reference = cols[5] || '';
-      } else {
-        // generic: Date,Amount,Description,Reference,Counterparty
-        date = parseDate(cols[0]);
-        amount = parseAmount(cols[1]);
-        description = cols[2] || '';
-        reference = cols[3] || '';
-        counterparty = cols[4] || '';
-      }
-    } catch {
-      continue;
-    }
-
-    if (!date || amount === 0) continue;
-
-    txs.push({
-      id: generateId(),
-      accountId,
-      date,
-      amount,
-      description,
-      reference,
-      counterparty,
-      status: 'unmatched',
-      importedAt: new Date().toISOString(),
-    });
-  }
-
-  return txs;
 }
 
 function suggestMatch(tx: BankTransaction, accounts: Account[], entries: Entry[]): Account | null {
@@ -275,16 +161,43 @@ export default function Banking({ accounts }: BankingProps) {
     setError(null);
     setSuccess(null);
     try {
-      const txs = parseCSV(csvText, csvFormat, selectedAccountId);
-      if (txs.length === 0) {
+      const rows = parseBankCsv(csvText, csvFormat);
+      if (rows.length === 0) {
         setError('CSV:stä ei löytynyt tapahtumia. Tarkista formaatti.');
         return;
       }
-      for (const tx of txs) {
-        await saveTransaction(tx);
+
+      // Paallekkaiset tiliotejaksot ovat tavallisia, joten jo tuodut
+      // tapahtumat ohitetaan sen sijaan etta ne kahdentuisivat.
+      const alreadyImported = transactions.filter((t) => t.accountId === selectedAccountId);
+      const { fresh, duplicates } = splitNewTransactions(rows, alreadyImported);
+
+      if (fresh.length === 0) {
+        setCsvText('');
+        setSuccess(`Kaikki ${duplicates} tapahtumaa oli jo tuotu`);
+        return;
       }
+
+      const importedAt = new Date().toISOString();
+      const txs: BankTransaction[] = fresh.map((row) => ({
+        id: generateId(),
+        accountId: selectedAccountId,
+        date: row.date,
+        amount: row.amount,
+        description: row.description,
+        reference: row.reference,
+        counterparty: row.counterparty,
+        status: 'unmatched',
+        importedAt,
+      }));
+
+      await saveManyTransactions(txs);
       setCsvText('');
-      setSuccess(`Tuotu ${txs.length} tapahtumaa`);
+      setSuccess(
+        duplicates > 0
+          ? `Tuotu ${txs.length} tapahtumaa, ohitettu ${duplicates} jo tuotua`
+          : `Tuotu ${txs.length} tapahtumaa`
+      );
       await loadData();
     } catch (e) {
       console.error(e);

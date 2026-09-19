@@ -299,6 +299,13 @@ export async function saveManyPersonalEntries(entries: PersonalEntry[]): Promise
   });
 }
 
+export async function saveManyTransactions(transactions: BankTransaction[]): Promise<void> {
+  const ledgerId = getActiveLedgerId();
+  await commitInChunks(transactions, (batch, tx) => {
+    batch.set(specificLedgerDoc(ledgerId, 'bankTransactions', tx.id), tx);
+  });
+}
+
 export async function deleteAllPersonalEntries(): Promise<void> {
   const snap = await getDocs(specificLedgerCol(getActiveLedgerId(), 'personalEntries'));
   await commitInChunks(snap.docs, (batch, d) => batch.delete(d.ref));
