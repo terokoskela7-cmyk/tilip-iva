@@ -131,7 +131,10 @@ export function MainApp() {
               entries={store.personalEntries}
               bankAccounts={store.bankAccounts}
               onAddEntry={store.addPersonalEntry}
+              onAddEntries={store.addPersonalEntries}
+              onAddAccount={store.addBankAccount}
               onDeleteEntry={store.removePersonalEntry}
+              onClearEntries={store.clearPersonalEntries}
             />
           </Suspense>
         )}

@@ -29,11 +29,19 @@ tietokannasta, eli se tuottaa käytännössä tyhjän varmuuskopion.
 | Löydös | Tila |
 |---|---|
 | K1 Onboarding ohitetaan | ✅ Korjattu |
+| K2 Laskutus ja toistuvat kirjaukset IndexedDB:ssä | ✅ Korjattu |
 | K3 Varmuuskopio / tyhjennys väärästä tietokannasta | ✅ Korjattu |
+| K4 Oma talous lukee localStoragesta | ✅ Korjattu |
 | K5 Firestore kaatuu undefined-arvoihin | ✅ Korjattu |
-| K2 Laskutus ja toistuvat kirjaukset IndexedDB:ssä | ⬜ Avoin |
-| K4 Oma talous lukee localStoragesta | ⬜ Avoin |
-| Kaikki H-, M- ja L-löydökset | ⬜ Avoin |
+| H8 Kassatapahtumat IndexedDB:ssä | ✅ Korjattu |
+| M7 CSV-tuonti kirjoittaa rivi kerrallaan | ✅ Korjattu |
+| M10 Migraatio ylittää batch-rajan | ✅ Korjattu |
+| M11 Turhia Firestore-lukuja | ✅ Korjattu |
+| H1–H7, M1–M6, M8–M9, L1–L9 | ⬜ Avoin |
+
+**Kaikki kirjoitukset menevät nyt Firestoreen.** `src/lib/db.ts` (IndexedDB) ja `src/lib/seed.ts`
+on poistettu; `src/lib/legacyMigration.ts` siirtää aiemmin paikallisesti tallennetun aineiston
+Firestoreen kertaalleen käyttäjää kohden.
 
 ---
 
@@ -58,7 +66,7 @@ tyhjään dashboardiin ilman tilikarttaa ja ilman ohjeistusta. Ainoa ulospääsy
 
 *Korjaus:* `const companyRequired = !activeLedger || activeLedger.type === 'company';`
 
-### K2. Laskutus ja toistuvat kirjaukset tallentuvat IndexedDB:hen, ei Firestoreen
+### K2. Laskutus ja toistuvat kirjaukset tallentuvat IndexedDB:hen, ei Firestoreen — ✅ korjattu
 `src/components/Invoicing.tsx:13`, `src/components/RecurringEntries.tsx:11`
 
 Molemmat importoivat `@/lib/db` (IndexedDB) eivätkä `@/lib/firestore`. Seuraukset:
@@ -87,7 +95,7 @@ import { exportAllData, resetDatabase } from '@/lib/db';   // ← IndexedDB
 `src/lib/firestore.ts` sisältää jo oikeat `exportAllData` ja `resetDatabase` -funktiot — vain
 import osoittaa väärään moduuliin.
 
-### K4. "Oma talous" näyttää localStoragen, budjetti Firestoren
+### K4. "Oma talous" näyttää localStoragen, budjetti Firestoren — ✅ korjattu
 `src/components/PersonalFinance.tsx:490, 495-519`
 
 ```ts
@@ -192,7 +200,7 @@ myyntisaamiset jäävät auki ikuisesti ja myynti kohdistuu väärälle kaudelle
 valitaan `accounts.find(a => a.type === 'revenue')` eli **ensimmäinen löytynyt** — käyttäjä ei voi
 valita tiliä, ja ALV-rivin selite on kovakoodattu `'ALV 25,5%'` riippumatta rivin verokannasta.
 
-### H8. Kassatapahtumat vain IndexedDB:ssä
+### H8. Kassatapahtumat vain IndexedDB:ssä — ✅ korjattu
 `src/hooks/useStore.ts:36-40`
 
 `getAllCashRegisterEntries` ja `saveCashRegisterEntry` tulevat `@/lib/db`:stä. Kassakirja ja sen
@@ -251,7 +259,7 @@ otsikottomasta tiedostosta katoaa ensimmäinen tapahtuma, ja `amount === 0` -tap
 DD/MM ja MM/DD -haarat palauttavat täsmälleen saman arvon — `if`-ehto on turha ja amerikkalainen
 muoto jäsentyy väärin.
 
-### M7. Tapahtumat tallennetaan yksi kerrallaan
+### M7. Tapahtumat tallennetaan yksi kerrallaan — ✅ korjattu
 `src/components/PersonalFinance.tsx:670-673`
 
 ```ts
@@ -283,13 +291,13 @@ Yrittäjävähennys on **5 % elinkeinotoiminnan tuloksesta**, ei 15 % liikevaihd
 20 % yhteisöveroa. Laskuri soveltaa molempia yhtä aikaa, joten lopputulos ei vastaa kumpaakaan
 yhtiömuotoa. Lisäksi `updateItem` (rivi 28-32) mutatoi tila-olion suoraan.
 
-### M10. Migraatio ylittää Firestoren batch-rajan
+### M10. Migraatio ylittää Firestoren batch-rajan — ✅ korjattu
 `src/lib/firestore.ts:296-340`
 
 Koko migraatio tehdään yhdessä `writeBatch`issä. Firestoren raja on 500 operaatiota; sitä isompi
 aineisto kaataa migraation kokonaan eikä mitään siirry.
 
-### M11. Turhia Firestore-lukuja joka latauksella
+### M11. Turhia Firestore-lukuja joka latauksella — ✅ korjattu
 `src/hooks/useStore.ts:117-134`
 
 `customers`, `invoices`, `recurringEntries`, `bankAccounts` ja `bankTransactions` ladataan joka
@@ -380,11 +388,13 @@ tuotantoympäristöjen erottamisen.
    tapahtumat ja budjetit, ja "Tyhjennä kaikki data" ei enää kylvä demo-dataa Firestoreen.
 2. ~~**K5** — `initializeFirestore(app, { ignoreUndefinedProperties: true })`.~~
 3. ~~**K1** — onboarding-ehto `!activeLedger || activeLedger.type === 'company'`.~~
+4. ~~**K2 + K4 + H8** — yksi tallennuskerros.~~ `Invoicing`, `RecurringEntries`,
+   `PersonalFinance` ja kassakirja käyttävät Firestorea; `db.ts` ja `seed.ts` poistettu;
+   kertaluonteinen migraatio vanhasta IndexedDB:stä ja localStoragesta lisätty. Samalla
+   korjattu M7 (eräkirjoitus), M10 (batch-rajan pilkkominen) ja M11 (turhat luvut).
 
 ### Seuraavaksi
 
-4. **K2 + K4 + H8** — yksi tallennuskerros. Siirrä `Invoicing`, `RecurringEntries`,
-   `PersonalFinance` ja kassakirja Firestoreen ja poista `db.ts` sekä localStorage-polku.
 5. **H1** — estä epätasapainoisen tositteen tallennus (validoi samoilta riveiltä jotka tallennetaan).
 6. **H3 + H4 + H5** — raporttien tilikausirajaus, negatiivisten saldojen säilytys, tilikauden tulos taseeseen.
 7. **H2 + H6 + H7** — juokseva tosite- ja laskunumerointi sekä oikea laskun kirjausketju.

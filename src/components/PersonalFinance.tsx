@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { Plus, Trash2, TrendingUp, Wallet, Landmark, Coins, Upload, Save, X, Eye, EyeOff, Plane, Umbrella, Users, Dumbbell, Receipt } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,6 +6,13 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
@@ -28,24 +35,6 @@ import {
 import type { PersonalEntry, BankAccount } from '@/types';
 import { format, parseISO, subMonths, startOfMonth } from 'date-fns';
 import { fi } from 'date-fns/locale';
-
-const LS_ENTRIES = 'tilipaiva_personal_entries';
-const LS_ACCOUNTS = 'tilipaiva_personal_accounts';
-const LS_DEMO_CLEARED = 'tilipaiva_demo_cleared';
-
-function loadFromStorage<T>(key: string, fallback: T): T {
-  try {
-    const raw = localStorage.getItem(key);
-    if (raw) return JSON.parse(raw) as T;
-  } catch { /* ignore */ }
-  return fallback;
-}
-
-function saveToStorage<T>(key: string, value: T) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch { /* ignore */ }
-}
 
 interface DemoAccount {
   id: string;
@@ -483,26 +472,24 @@ interface PersonalFinanceProps {
   entries: PersonalEntry[];
   bankAccounts: BankAccount[];
   onAddEntry: (entry: PersonalEntry) => void;
+  onAddEntries: (entries: PersonalEntry[]) => Promise<void>;
+  onAddAccount: (account: BankAccount) => Promise<void>;
   onDeleteEntry: (id: string) => void;
+  onClearEntries: () => Promise<void>;
 }
 
 export default function PersonalFinance({
-  entries: _entries,
+  entries,
   bankAccounts,
   onAddEntry,
+  onAddEntries,
+  onAddAccount,
   onDeleteEntry,
+  onClearEntries,
 }: PersonalFinanceProps) {
-  const demoCleared = localStorage.getItem(LS_DEMO_CLEARED) === 'true';
   const currentMonth = monthKey(new Date());
-  const initialEntries = demoCleared ? [] : createDemoEntries(currentMonth);
-  const [localEntries, setLocalEntries] = useState<PersonalEntry[]>(() =>
-    loadFromStorage<PersonalEntry[]>(LS_ENTRIES, initialEntries)
-  );
-  const [localAccounts, setLocalAccounts] = useState<DemoAccount[]>(() =>
-    loadFromStorage<DemoAccount[]>(LS_ACCOUNTS, DEMO_ACCOUNTS)
-  );
   const [demoMode, setDemoMode] = useState(false);
-  const [csvAccountType, setCsvAccountType] = useState<'checking' | 'salary'>('checking');
+  const [csvAccountId, setCsvAccountId] = useState<string>('cash');
 
   const [type, setType] = useState<'income' | 'expense'>('expense');
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -512,17 +499,17 @@ export default function PersonalFinance({
   const [accountId, setAccountId] = useState('cash');
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
   const [previewRows, setPreviewRows] = useState<ParsedRow[] | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [accountModal, setAccountModal] = useState(false);
+  const [newAccountName, setNewAccountName] = useState('');
+  const [newAccountBalance, setNewAccountBalance] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => { saveToStorage(LS_ENTRIES, localEntries); }, [localEntries]);
-  useEffect(() => { saveToStorage(LS_ACCOUNTS, localAccounts); }, [localAccounts]);
 
   const demoEntries = useMemo(() => (demoMode ? createDemoEntries(selectedMonth) : []), [demoMode, selectedMonth]);
 
+  // Firestore on ainoa tallennuspaikka; demo-tapahtumat naytetaan vain, niita ei tallenneta.
   const displayEntries = useMemo(() => {
-    return [...localEntries, ...demoEntries];
-  }, [localEntries, demoEntries]);
+    return [...entries, ...demoEntries];
+  }, [entries, demoEntries]);
 
   const filteredEntries = useMemo(() => {
     return displayEntries.filter((e) => e.date.startsWith(selectedMonth));
@@ -536,9 +523,23 @@ export default function PersonalFinance({
     return { income, expense, savings, savingsRate };
   }, [filteredEntries]);
 
+  // Tilin saldo = alkusaldo + kaikki sille kohdistetut tapahtumat.
+  const accountBalances = useMemo(() => {
+    const demo: DemoAccount[] = demoMode ? DEMO_ACCOUNTS : [];
+    const real = bankAccounts.map((acc) => ({
+      id: acc.id,
+      name: acc.name,
+      type: 'checking' as const,
+      balance: displayEntries
+        .filter((e) => e.accountId === acc.id)
+        .reduce((sum, e) => sum + e.amount, acc.initialBalance),
+    }));
+    return [...real, ...demo];
+  }, [bankAccounts, displayEntries, demoMode]);
+
   const totalWealth = useMemo(() => {
-    return localAccounts.reduce((sum, a) => sum + a.balance, 0);
-  }, [localAccounts]);
+    return accountBalances.reduce((sum, a) => sum + a.balance, 0);
+  }, [accountBalances]);
 
   const chartData = useMemo(() => {
     const now = new Date();
@@ -592,7 +593,6 @@ export default function PersonalFinance({
       accountId: accountId === 'cash' ? undefined : accountId,
       createdAt: new Date().toISOString(),
     };
-    setLocalEntries((prev) => [entry, ...prev]);
     onAddEntry(entry);
     setDescription('');
     setAmount('');
@@ -600,7 +600,6 @@ export default function PersonalFinance({
   };
 
   const handleDelete = (id: string) => {
-    setLocalEntries((prev) => prev.filter((e) => e.id !== id));
     onDeleteEntry(id);
   };
 
@@ -658,48 +657,49 @@ export default function PersonalFinance({
     if (!previewRows) return;
     const selected = previewRows.filter((r) => r.selected);
     const now = new Date().toISOString();
-    const accountId = csvAccountType === 'checking' ? 'checking' : 'savings';
     const newEntries: PersonalEntry[] = selected.map((row) => ({
       id: generateId(),
       date: row.date,
       description: row.description,
       amount: row.type === 'income' ? Math.abs(row.amount) : -Math.abs(row.amount),
       category: row.category,
-      accountId,
+      accountId: csvAccountId === 'cash' ? undefined : csvAccountId,
       createdAt: now,
     }));
-    setLocalEntries((prev) => [...newEntries, ...prev]);
-    for (const entry of newEntries) {
-      await onAddEntry(entry);
-    }
+    // Yksi eratallennus yksittaisten kirjoitusten sijaan.
+    await onAddEntries(newEntries);
     setPreviewRows(null);
-    setSuccess(`Tallennettu ${selected.length} tapahtumaa`);
-    setTimeout(() => setSuccess(null), 3000);
   };
 
   const toggleDemo = () => {
     setDemoMode((prev) => !prev);
   };
 
-  const clearAllData = () => {
-    if (!window.confirm('Tyhjennetäänkö kaikki Oma talous -tiedot?')) return;
-    localStorage.setItem(LS_DEMO_CLEARED, 'true');
-    setLocalEntries([]);
-    setLocalAccounts(DEMO_ACCOUNTS.map((a) => ({ ...a, balance: 0 })));
+  const handleAddAccount = async () => {
+    const balance = parseFloat((newAccountBalance || '0').replace(',', '.'));
+    if (!newAccountName.trim() || isNaN(balance)) return;
+    await onAddAccount({
+      id: generateId(),
+      name: newAccountName.trim(),
+      iban: '',
+      bank: '',
+      currency: 'EUR',
+      initialBalance: balance,
+      createdAt: new Date().toISOString(),
+    });
+    setNewAccountName('');
+    setNewAccountBalance('');
+    setAccountModal(false);
+  };
+
+  const clearAllData = async () => {
+    if (!window.confirm('Tyhjennetäänkö kaikki Oma talous -tapahtumat? Tätä ei voi peruuttaa.')) return;
+    await onClearEntries();
     setDemoMode(false);
-    setSuccess('Kaikki tiedot tyhjennetty');
-    setTimeout(() => setSuccess(null), 3000);
   };
 
   const restoreDemo = () => {
-    if (!window.confirm('Palautetaanko demo-data? Omat lisäykset säilyvät.')) return;
-    localStorage.removeItem(LS_DEMO_CLEARED);
-    const demo = createDemoEntries(selectedMonth);
-    setLocalEntries((prev) => [...demo, ...prev]);
-    setLocalAccounts(DEMO_ACCOUNTS);
     setDemoMode(true);
-    setSuccess('Demo-data palautettu');
-    setTimeout(() => setSuccess(null), 3000);
   };
 
   const previewTotals = useMemo(() => {
@@ -720,16 +720,10 @@ export default function PersonalFinance({
     return list;
   }, []);
 
-  const hasData = localEntries.length > 0;
+  const hasData = entries.length > 0;
 
   return (
     <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-6">
-      {success && (
-        <div className="fixed top-4 right-4 z-50 bg-green-50 text-green-800 border border-green-200 px-4 py-3 rounded-md shadow-lg text-sm font-medium">
-          {success}
-        </div>
-      )}
-
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <h2 className="text-2xl font-bold text-gray-900">Oma talous</h2>
         <div className="flex items-center gap-2 flex-wrap">
@@ -746,13 +740,15 @@ export default function PersonalFinance({
 
           <div className="flex items-center gap-2 bg-white border rounded-md px-2 py-1">
             <Label className="text-xs text-gray-500 whitespace-nowrap">CSV-tili</Label>
-            <Select value={csvAccountType} onValueChange={(v) => setCsvAccountType(v as 'checking' | 'salary')}>
+            <Select value={csvAccountId} onValueChange={setCsvAccountId}>
               <SelectTrigger className="w-[160px] border-0 shadow-none h-8">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="checking">Kulutustili</SelectItem>
-                <SelectItem value="salary">Palkka-Säästötili</SelectItem>
+                <SelectItem value="cash">Ei tiliä</SelectItem>
+                {bankAccounts.map((acc) => (
+                  <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -861,7 +857,7 @@ export default function PersonalFinance({
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {localAccounts.map((acc) => (
+        {accountBalances.map((acc) => (
           <Card key={acc.id}>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-gray-500 flex items-center gap-2">
@@ -875,9 +871,35 @@ export default function PersonalFinance({
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-500 flex items-center gap-2"><Wallet className="w-4 h-4" /> Varallisuus yht.</CardTitle>
           </CardHeader>
-          <CardContent><p className="text-xl font-bold text-blue-600">{totalWealth.toFixed(2)} €</p></CardContent>
+          <CardContent className="space-y-2">
+            <p className="text-xl font-bold text-blue-600">{totalWealth.toFixed(2)} €</p>
+            <Button variant="outline" size="sm" className="w-full" onClick={() => setAccountModal(true)}>
+              <Plus className="w-4 h-4 mr-2" /> Lisää tili
+            </Button>
+          </CardContent>
         </Card>
       </div>
+
+      <Dialog open={accountModal} onOpenChange={setAccountModal}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Uusi tili</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="pf-acc-name">Tilin nimi</Label>
+              <Input id="pf-acc-name" placeholder="Esimerkiksi Kulutustili" value={newAccountName} onChange={(e) => setNewAccountName(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="pf-acc-balance">Alkusaldo</Label>
+              <Input id="pf-acc-balance" type="number" step="0.01" placeholder="0,00" value={newAccountBalance} onChange={(e) => setNewAccountBalance(e.target.value)} />
+              <p className="text-xs text-gray-500">Tilin saldo lasketaan alkusaldosta ja sille kohdistetuista tapahtumista.</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAccountModal(false)}>Peruuta</Button>
+            <Button onClick={handleAddAccount} disabled={!newAccountName.trim()}>Tallenna</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Card>
         <CardHeader><CardTitle className="text-lg flex items-center gap-2"><TrendingUp className="w-5 h-5" /> Tulot vs. Menot</CardTitle></CardHeader>
@@ -954,7 +976,6 @@ export default function PersonalFinance({
                   <SelectContent>
                     <SelectItem value="cash">Käteiskassa</SelectItem>
                     {bankAccounts.map((acc) => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
-                    {localAccounts.filter((a) => a.type !== 'cash').map((acc) => <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>

@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Repeat, Plus, Play, Trash2, Pencil } from 'lucide-react';
 import type { RecurringEntry, Entry, EntryLine, Account } from '@/types';
-import { getAllRecurringEntries, saveRecurringEntry, deleteRecurringEntry } from '@/lib/db';
+import { getAllRecurringEntries, saveRecurringEntry, deleteRecurringEntry } from '@/lib/firestore';
 
 function generateId(): string {
   return Math.random().toString(36).substring(2, 15) + Date.now().toString(36);

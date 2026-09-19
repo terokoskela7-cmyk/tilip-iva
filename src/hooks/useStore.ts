@@ -1,24 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { Account, Entry, Company, CashRegisterEntry, Customer, Invoice, RecurringEntry, View, Ledger, BankAccount, BankTransaction, PersonalEntry, Budget } from '@/types';
+import type { Account, Entry, Company, CashRegisterEntry, View, Ledger, BankAccount, PersonalEntry, Budget } from '@/types';
 import {
   getAllAccounts,
   getAllEntries,
   getCompany,
-  getAllCustomers,
-  getAllInvoices,
-  getAllRecurringEntries,
   saveEntry,
   saveAccount,
   getEntryById,
   deleteEntry,
   deleteAccount,
   saveCompany,
-  saveCustomer,
-  saveInvoice,
-  saveRecurringEntry,
-  deleteCustomer,
-  deleteInvoice,
-  deleteRecurringEntry,
   getAllLedgers,
   migrateToLedgers,
   setActiveLedgerId,
@@ -26,18 +17,20 @@ import {
   saveLedger,
   seedLedgerAccounts,
   getAllBankAccounts,
-  getAllTransactions,
+  saveBankAccount,
   getAllPersonalEntries,
   savePersonalEntry,
   deletePersonalEntry,
   getAllBudgets,
   saveBudget,
-} from '@/lib/firestore';
-import { deleteAttachment } from '@/lib/storage';
-import {
   getAllCashRegisterEntries,
   saveCashRegisterEntry,
-} from '@/lib/db';
+  saveManyPersonalEntries,
+  deleteAllPersonalEntries,
+} from '@/lib/firestore';
+import { deleteAttachment } from '@/lib/storage';
+import { migrateLegacyLocalData, migrateLegacyPersonalEntries } from '@/lib/legacyMigration';
+import { auth } from '@/firebase/config';
 
 export function useStore() {
   const [view, setView] = useState<View>('dashboard');
@@ -45,11 +38,7 @@ export function useStore() {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [company, setCompany] = useState<Company | null>(null);
   const [cashEntries, setCashEntries] = useState<CashRegisterEntry[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [recurringEntries, setRecurringEntries] = useState<RecurringEntry[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
-  const [bankTransactions, setBankTransactions] = useState<BankTransaction[]>([]);
   const [personalEntries, setPersonalEntries] = useState<PersonalEntry[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [ledgers, setLedgers] = useState<Ledger[]>([]);
@@ -72,6 +61,8 @@ export function useStore() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
+      const uid = auth.currentUser?.uid;
+
       let existingLedgers = await getAllLedgers();
       if (existingLedgers.length === 0) {
         await migrateToLedgers();
@@ -86,6 +77,12 @@ export function useStore() {
         setActiveLedgerId(currentLedgerId);
       }
       setActiveLedgerIdState(currentLedgerId);
+
+      // Siirtaa aiemmin paikallisesti tallennetun aineiston Firestoreen kertaalleen.
+      // Vasta tassa, jotta kohdetilikirja on varmasti olemassa.
+      if (uid && existingLedgers.length > 0) {
+        await migrateLegacyLocalData(uid, currentLedgerId);
+      }
 
       const activeLedger = existingLedgers.find((l) => l.id === currentLedgerId);
       const isPersonal = activeLedger?.type === 'personal';
@@ -103,39 +100,32 @@ export function useStore() {
       if (comp) setCompany(comp);
 
       if (isPersonal) {
-        const [pers, bgt] = await Promise.all([
+        if (uid) {
+          await migrateLegacyPersonalEntries(uid, currentLedgerId);
+        }
+        const [pers, bgt, bankAcc] = await Promise.all([
           getAllPersonalEntries(),
           getAllBudgets(),
+          getAllBankAccounts(),
         ]);
         setPersonalEntries(pers);
         setBudgets(bgt);
+        setBankAccounts(bankAcc);
         setAccounts([]);
         setEntries([]);
         setCashEntries([]);
-        setCustomers([]);
-        setInvoices([]);
-        setRecurringEntries([]);
-        setBankAccounts([]);
-        setBankTransactions([]);
       } else {
-        const [acc, ent, cash, cust, inv, rec, bankAcc, bankTx] = await Promise.all([
+        // Laskutus, asiakkaat ja toistuvat kirjaukset lataa kukin nakyma itse.
+        const [acc, ent, cash, bankAcc] = await Promise.all([
           getAllAccounts(),
           getAllEntries(),
-          getAllCashRegisterEntries(currentLedgerId),
-          getAllCustomers(),
-          getAllInvoices(),
-          getAllRecurringEntries(),
+          getAllCashRegisterEntries(),
           getAllBankAccounts(),
-          getAllTransactions(),
         ]);
         setAccounts(acc);
         setEntries(ent);
         setCashEntries(cash);
-        setCustomers(cust);
-        setInvoices(inv);
-        setRecurringEntries(rec);
         setBankAccounts(bankAcc);
-        setBankTransactions(bankTx);
         setPersonalEntries([]);
         setBudgets([]);
       }
@@ -187,33 +177,13 @@ export function useStore() {
   }, []);
 
   const refreshCashEntries = useCallback(async () => {
-    const cash = await getAllCashRegisterEntries(getActiveLedgerId());
+    const cash = await getAllCashRegisterEntries();
     setCashEntries(cash);
-  }, []);
-
-  const refreshCustomers = useCallback(async () => {
-    const cust = await getAllCustomers();
-    setCustomers(cust);
-  }, []);
-
-  const refreshInvoices = useCallback(async () => {
-    const inv = await getAllInvoices();
-    setInvoices(inv);
-  }, []);
-
-  const refreshRecurring = useCallback(async () => {
-    const rec = await getAllRecurringEntries();
-    setRecurringEntries(rec);
   }, []);
 
   const refreshBankAccounts = useCallback(async () => {
     const acc = await getAllBankAccounts();
     setBankAccounts(acc);
-  }, []);
-
-  const refreshBankTransactions = useCallback(async () => {
-    const tx = await getAllTransactions();
-    setBankTransactions(tx);
   }, []);
 
   const refreshPersonalEntries = useCallback(async () => {
@@ -274,53 +244,11 @@ export function useStore() {
   }, [showToast]);
 
   const addCashEntry = useCallback(async (entry: CashRegisterEntry) => {
-    await saveCashRegisterEntry(entry, getActiveLedgerId());
+    await saveCashRegisterEntry(entry);
     await refreshCashEntries();
     setLastBackup(new Date().toLocaleTimeString('fi-FI'));
     showToast('Kassatapahtuma tallennettu', 'success');
   }, [refreshCashEntries, showToast]);
-
-  const addCustomer = useCallback(async (customer: Customer) => {
-    await saveCustomer(customer);
-    await refreshCustomers();
-    setLastBackup(new Date().toLocaleTimeString('fi-FI'));
-    showToast('Asiakas tallennettu', 'success');
-  }, [refreshCustomers, showToast]);
-
-  const removeCustomer = useCallback(async (id: string) => {
-    await deleteCustomer(id);
-    await refreshCustomers();
-    setLastBackup(new Date().toLocaleTimeString('fi-FI'));
-    showToast('Asiakas poistettu', 'success');
-  }, [refreshCustomers, showToast]);
-
-  const addInvoice = useCallback(async (invoice: Invoice) => {
-    await saveInvoice(invoice);
-    await refreshInvoices();
-    setLastBackup(new Date().toLocaleTimeString('fi-FI'));
-    showToast('Lasku tallennettu', 'success');
-  }, [refreshInvoices, showToast]);
-
-  const removeInvoice = useCallback(async (id: string) => {
-    await deleteInvoice(id);
-    await refreshInvoices();
-    setLastBackup(new Date().toLocaleTimeString('fi-FI'));
-    showToast('Lasku poistettu', 'success');
-  }, [refreshInvoices, showToast]);
-
-  const addRecurringEntry = useCallback(async (entry: RecurringEntry) => {
-    await saveRecurringEntry(entry);
-    await refreshRecurring();
-    setLastBackup(new Date().toLocaleTimeString('fi-FI'));
-    showToast('Toistuva tosite tallennettu', 'success');
-  }, [refreshRecurring, showToast]);
-
-  const removeRecurringEntry = useCallback(async (id: string) => {
-    await deleteRecurringEntry(id);
-    await refreshRecurring();
-    setLastBackup(new Date().toLocaleTimeString('fi-FI'));
-    showToast('Toistuva tosite poistettu', 'success');
-  }, [refreshRecurring, showToast]);
 
   const addPersonalEntry = useCallback(async (entry: PersonalEntry) => {
     await savePersonalEntry(entry);
@@ -334,6 +262,28 @@ export function useStore() {
     await refreshPersonalEntries();
     setLastBackup(new Date().toLocaleTimeString('fi-FI'));
     showToast('Tapahtuma poistettu', 'success');
+  }, [refreshPersonalEntries, showToast]);
+
+  const addBankAccount = useCallback(async (account: BankAccount) => {
+    await saveBankAccount(account);
+    await refreshBankAccounts();
+    setLastBackup(new Date().toLocaleTimeString('fi-FI'));
+    showToast('Tili tallennettu', 'success');
+  }, [refreshBankAccounts, showToast]);
+
+  const addPersonalEntries = useCallback(async (entries: PersonalEntry[]) => {
+    if (entries.length === 0) return;
+    await saveManyPersonalEntries(entries);
+    await refreshPersonalEntries();
+    setLastBackup(new Date().toLocaleTimeString('fi-FI'));
+    showToast(`Tallennettu ${entries.length} tapahtumaa`, 'success');
+  }, [refreshPersonalEntries, showToast]);
+
+  const clearPersonalEntries = useCallback(async () => {
+    await deleteAllPersonalEntries();
+    await refreshPersonalEntries();
+    setLastBackup(new Date().toLocaleTimeString('fi-FI'));
+    showToast('Oman talouden tapahtumat poistettu', 'success');
   }, [refreshPersonalEntries, showToast]);
 
   const addBudget = useCallback(async (budget: Budget) => {
@@ -429,30 +379,19 @@ export function useStore() {
     totalVatPayable,
     totalVatDeductible,
     cashBalance,
-    customers,
-    invoices,
-    recurringEntries,
-    refreshCustomers,
-    refreshInvoices,
-    refreshRecurring,
     refreshAccounts,
     refreshEntries,
-    addCustomer,
-    removeCustomer,
-    addInvoice,
-    removeInvoice,
-    addRecurringEntry,
-    removeRecurringEntry,
     bankAccounts,
-    bankTransactions,
     refreshBankAccounts,
-    refreshBankTransactions,
+    addBankAccount,
     personalEntries,
     budgets,
     refreshPersonalEntries,
     refreshBudgets,
     addPersonalEntry,
+    addPersonalEntries,
     removePersonalEntry,
+    clearPersonalEntries,
     addBudget,
   };
 }

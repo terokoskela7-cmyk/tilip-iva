@@ -26,6 +26,7 @@ import type {
   LedgerType,
   PersonalEntry,
   Budget,
+  CashRegisterEntry,
 } from '@/types';
 import { defaultAccounts } from '@/data/defaultAccounts';
 import { privateAccounts } from '@/data/privateAccounts';
@@ -209,14 +210,65 @@ export async function deleteTransaction(id: string): Promise<void> {
   await deleteDoc(ledgerDoc('bankTransactions', id));
 }
 
+// === CASH REGISTER ===
+export async function getAllCashRegisterEntries(): Promise<CashRegisterEntry[]> {
+  const snap = await getDocs(query(ledgerCol('cashRegister'), orderBy('date')));
+  return snap.docs.map((d) => d.data() as CashRegisterEntry);
+}
+
+export async function saveCashRegisterEntry(entry: CashRegisterEntry): Promise<void> {
+  await setDoc(ledgerDoc('cashRegister', entry.id), entry);
+}
+
+export async function deleteCashRegisterEntry(id: string): Promise<void> {
+  await deleteDoc(ledgerDoc('cashRegister', id));
+}
+
 // === BATCH OPERATIONS ===
-export async function saveManyAccounts(accounts: Account[], ledgerId?: string): Promise<void> {
-  const batch = writeBatch(db);
-  const targetLedgerId = ledgerId || getActiveLedgerId();
-  for (const account of accounts) {
-    batch.set(specificLedgerDoc(targetLedgerId, 'accounts', account.id), account);
+/** Firestoren writeBatch hyvaksyy enintaan 500 operaatiota, joten pilkotaan. */
+const BATCH_LIMIT = 500;
+
+async function commitInChunks<T>(
+  items: T[],
+  apply: (batch: ReturnType<typeof writeBatch>, item: T) => void
+): Promise<void> {
+  for (let i = 0; i < items.length; i += BATCH_LIMIT) {
+    const batch = writeBatch(db);
+    for (const item of items.slice(i, i + BATCH_LIMIT)) {
+      apply(batch, item);
+    }
+    await batch.commit();
   }
-  await batch.commit();
+}
+
+export async function saveManyAccounts(accounts: Account[], ledgerId?: string): Promise<void> {
+  const targetLedgerId = ledgerId || getActiveLedgerId();
+  await commitInChunks(accounts, (batch, account) => {
+    batch.set(specificLedgerDoc(targetLedgerId, 'accounts', account.id), account);
+  });
+}
+
+/** Kirjoittaa mielivaltaisia dokumentteja nimettyyn tilikirjaan (kaytetaan migraatiossa). */
+export async function saveManyToLedger(
+  ledgerId: string,
+  subCollection: string,
+  docs: { id: string }[]
+): Promise<void> {
+  await commitInChunks(docs, (batch, item) => {
+    batch.set(specificLedgerDoc(ledgerId, subCollection, item.id), item);
+  });
+}
+
+export async function saveManyPersonalEntries(entries: PersonalEntry[]): Promise<void> {
+  const ledgerId = getActiveLedgerId();
+  await commitInChunks(entries, (batch, entry) => {
+    batch.set(specificLedgerDoc(ledgerId, 'personalEntries', entry.id), entry);
+  });
+}
+
+export async function deleteAllPersonalEntries(): Promise<void> {
+  const snap = await getDocs(specificLedgerCol(getActiveLedgerId(), 'personalEntries'));
+  await commitInChunks(snap.docs, (batch, d) => batch.delete(d.ref));
 }
 
 // === SEEDING ===
@@ -316,37 +368,27 @@ export async function migrateToLedgers(): Promise<void> {
   };
   await saveLedger(defaultLedger);
 
-  const batch = writeBatch(db);
+  const legacy: { col: string; id: string; data: Record<string, unknown> }[] = [];
+  const collect = (col: string, docs: { id: string; data: () => Record<string, unknown> }[]) => {
+    for (const d of docs) legacy.push({ col, id: d.id, data: d.data() });
+  };
 
-  for (const d of oldAccounts.docs) {
-    batch.set(specificLedgerDoc(ledgerId, 'accounts', d.id), d.data());
-  }
-  for (const d of oldEntries.docs) {
-    batch.set(specificLedgerDoc(ledgerId, 'entries', d.id), d.data());
-  }
-  for (const d of oldCustomers.docs) {
-    batch.set(specificLedgerDoc(ledgerId, 'customers', d.id), d.data());
-  }
-  for (const d of oldInvoices.docs) {
-    batch.set(specificLedgerDoc(ledgerId, 'invoices', d.id), d.data());
-  }
-  for (const d of oldRecurring.docs) {
-    batch.set(specificLedgerDoc(ledgerId, 'recurringEntries', d.id), d.data());
-  }
-  for (const d of oldVatPeriods.docs) {
-    batch.set(specificLedgerDoc(ledgerId, 'vatPeriods', d.id), d.data());
-  }
-  for (const d of oldBankAccounts.docs) {
-    batch.set(specificLedgerDoc(ledgerId, 'bankAccounts', d.id), d.data());
-  }
-  for (const d of oldBankTransactions.docs) {
-    batch.set(specificLedgerDoc(ledgerId, 'bankTransactions', d.id), d.data());
-  }
+  collect('accounts', oldAccounts.docs);
+  collect('entries', oldEntries.docs);
+  collect('customers', oldCustomers.docs);
+  collect('invoices', oldInvoices.docs);
+  collect('recurringEntries', oldRecurring.docs);
+  collect('vatPeriods', oldVatPeriods.docs);
+  collect('bankAccounts', oldBankAccounts.docs);
+  collect('bankTransactions', oldBankTransactions.docs);
   if (oldCompany.exists()) {
-    batch.set(specificLedgerDoc(ledgerId, 'company', 'main'), oldCompany.data());
+    legacy.push({ col: 'company', id: 'main', data: oldCompany.data() });
   }
 
-  await batch.commit();
+  await commitInChunks(legacy, (batch, item) => {
+    batch.set(specificLedgerDoc(ledgerId, item.col, item.id), item.data);
+  });
+
   setActiveLedgerId(ledgerId);
 }
 
@@ -364,6 +406,7 @@ export async function exportAllData(): Promise<Record<string, unknown>> {
     vatPeriods,
     bankAccounts,
     bankTransactions,
+    cashRegister,
     personalEntries,
     budgets,
   ] = await Promise.all([
@@ -377,6 +420,7 @@ export async function exportAllData(): Promise<Record<string, unknown>> {
     getAllVatPeriods(),
     getAllBankAccounts(),
     getAllTransactions(),
+    getAllCashRegisterEntries(),
     getAllPersonalEntries(),
     getAllBudgets(),
   ]);
@@ -393,6 +437,7 @@ export async function exportAllData(): Promise<Record<string, unknown>> {
     vatPeriods,
     bankAccounts,
     bankTransactions,
+    cashRegister,
     personalEntries,
     budgets,
   };
@@ -400,15 +445,11 @@ export async function exportAllData(): Promise<Record<string, unknown>> {
 
 // === RESET ===
 export async function resetDatabase(): Promise<void> {
-  const cols = ['accounts', 'entries', 'customers', 'invoices', 'recurringEntries', 'vatPeriods', 'bankAccounts', 'bankTransactions', 'personalEntries', 'budgets'];
+  const cols = ['accounts', 'entries', 'customers', 'invoices', 'recurringEntries', 'vatPeriods', 'bankAccounts', 'bankTransactions', 'cashRegister', 'personalEntries', 'budgets'];
   const ledgerId = getActiveLedgerId();
   for (const colName of cols) {
     const snap = await getDocs(specificLedgerCol(ledgerId, colName));
-    const batch = writeBatch(db);
-    for (const d of snap.docs) {
-      batch.delete(d.ref);
-    }
-    await batch.commit();
+    await commitInChunks(snap.docs, (batch, d) => batch.delete(d.ref));
   }
   await deleteDoc(specificLedgerDoc(ledgerId, 'company', 'main'));
 }

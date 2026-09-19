@@ -10,7 +10,7 @@ import { Receipt, Plus, Trash2, Send, CheckCircle, Users, Download } from 'lucid
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { Invoice, InvoiceLine, Customer, Entry, Account } from '@/types';
-import { getAllInvoices, saveInvoice, deleteInvoice, getAllCustomers, saveCustomer, deleteCustomer } from '@/lib/db';
+import { getAllInvoices, saveInvoice, deleteInvoice, getAllCustomers, saveCustomer, deleteCustomer } from '@/lib/firestore';
 
 function generateId(): string {
   return Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
