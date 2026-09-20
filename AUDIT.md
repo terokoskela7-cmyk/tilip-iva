@@ -56,7 +56,8 @@ tietokannasta, eli se tuottaa käytännössä tyhjän varmuuskopion.
 | M12 Mobiilin yläpalkki peitti sisällön | ✅ Korjattu |
 | M13 Lisätty yritys ei näkynyt | ✅ Korjattu |
 | L1 Lockfile osoitti kolmannen osapuolen peiliin | ✅ Korjattu |
-| L2, L4–L9 | ⬜ Avoin |
+| L4 Paikallinen kehitys dokumentoimatta | ✅ Korjattu |
+| L2, L5–L9 | ⬜ Avoin |
 
 **Kaikki kirjoitukset menevät nyt Firestoreen.** `src/lib/db.ts` (IndexedDB) ja `src/lib/seed.ts`
 on poistettu; `src/lib/legacyMigration.ts` siirtää aiemmin paikallisesti tallennetun aineiston
@@ -455,10 +456,15 @@ senttipohjainen saldolaskenta, tuloslaskelma/tase/ALV yhdelle tilikaudelle, tosi
 validointi, juokseva numerointi, myyntilaskun kirjausketju, CSV-tuonti sekä YEL- ja
 verolaskenta. CI ajaa testit ennen buildia. Kattamatta on yhä komponenttitaso, eikä lint ole vielä osa CI:tä.
 
-### L4. Paikallinen kehitys vaatii emulaattorit — dokumentoimatta
+### L4. Paikallinen kehitys vaatii emulaattorit — dokumentoimatta — ✅ korjattu
 `src/firebase/config.ts:21-29` kytkeytyy emulaattoreihin aina kun `DEV` tai hostname on
-`localhost`. Ilman käynnissä olevia emulaattoreita kirjautuminen ei toimi paikallisesti lainkaan.
-README on yhä muokkaamaton Vite-template eikä mainitse tätä.
+`localhost`. Ilman käynnissä olevia emulaattoreita kirjautuminen ei toimi paikallisesti lainkaan,
+eikä vika näy selkeänä virheilmoituksena. README oli yhä muokkaamaton Vite-template.
+
+README kirjoitettu: vaatimukset, asennus, emulaattoriehto, komennot, testit, `lib`-hakemiston
+työnjako, Firebase-säännöt ja julkaisu. Mukana myös verotuksen lukujen vuosittainen
+päivitystarve ja se mistä luvut löytyvät. `info.md` poistettu — se oli projektipohjan generoima
+muistiinpano eikä vastannut enää rakennetta.
 
 ### L5. Kaksi manifestia
 `index.html:12` viittaa `public/manifest.json`-tiedostoon, ja VitePWA injektoi lisäksi oman
@@ -474,10 +480,10 @@ vain laskun tulostukseen eikä sen kuuluisi olla ensilatauksessa.
 selainpuolella (`EntryModal.tsx:95`) ja ohitettavissa. Sääntöihin kannattaa lisätä
 `request.resource.size` ja `contentType`-rajaus.
 
-### L8. Kuollutta koodia
-`src/pages/Home.tsx` on muokkaamaton Vite-template-komponentti, jota ei importoida mistään.
-`src/lib/seed.ts` kylvää demo-dataa IndexedDB:hen. `db.ts`:n IndexedDB-kerros on osittain
-päällekkäinen `firestore.ts`:n kanssa.
+### L8. Kuollutta koodia — 🟡 osittain korjattu
+`src/lib/seed.ts` ja `src/lib/db.ts` poistettiin tallennuskerroksen yhdistämisen yhteydessä,
+`info.md` README:n kirjoittamisen yhteydessä. Jäljellä on `src/pages/Home.tsx`, muokkaamaton
+Vite-template-komponentti jota ei importoida mistään.
 
 ### L9. Firebase-konfiguraatio kovakoodattu
 `src/firebase/config.ts:6-13`. Web-API-avain ei ole salaisuus, joten tämä ei ole
