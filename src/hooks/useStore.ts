@@ -10,6 +10,7 @@ import {
   deleteEntry,
   deleteAccount,
   saveCompany,
+  saveCompanyToLedger,
   getAllLedgers,
   migrateToLedgers,
   setActiveLedgerId,
@@ -32,6 +33,7 @@ import {
 import { highestNumber } from '@/lib/numbering';
 import { deleteAttachment } from '@/lib/storage';
 import { migrateLegacyLocalData, migrateLegacyPersonalEntries } from '@/lib/legacyMigration';
+import { resolveLedgerSelection } from '@/lib/ledgerSelection';
 import { auth } from '@/firebase/config';
 
 export function useStore() {
@@ -46,7 +48,7 @@ export function useStore() {
   const [ledgers, setLedgers] = useState<Ledger[]>([]);
   const [activeLedgerId, setActiveLedgerIdState] = useState<string>(() => getActiveLedgerId());
   const [loading, setLoading] = useState(true);
-  const [hasCompany, setHasCompany] = useState<boolean | null>(null);
+  const [needsOnboarding, setNeedsOnboarding] = useState<boolean | null>(null);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [entryModalOpen, setEntryModalOpen] = useState(false);
@@ -72,34 +74,32 @@ export function useStore() {
       }
       setLedgers(existingLedgers);
 
-      let currentLedgerId = getActiveLedgerId();
-      const ids = existingLedgers.map((l) => l.id);
-      if (!ids.includes(currentLedgerId) && ids.length > 0) {
-        currentLedgerId = ids[0];
-        setActiveLedgerId(currentLedgerId);
-      }
-      setActiveLedgerIdState(currentLedgerId);
-
-      // Siirtaa aiemmin paikallisesti tallennetun aineiston Firestoreen kertaalleen.
-      // Vasta tassa, jotta kohdetilikirja on varmasti olemassa.
-      if (uid && existingLedgers.length > 0) {
-        await migrateLegacyLocalData(uid, currentLedgerId);
-      }
-
-      const activeLedger = existingLedgers.find((l) => l.id === currentLedgerId);
-      const isPersonal = activeLedger?.type === 'personal';
-
-      const comp = await getCompany();
-      // Uudella käyttäjällä tilikirjoja ei vielä ole, jolloin activeLedger on undefined.
-      // Myös silloin yrityksen tiedot tarvitaan, jotta onboarding näkyy.
-      const companyRequired = !activeLedger || activeLedger.type === 'company';
-      if (!comp && companyRequired) {
-        setHasCompany(false);
+      // Onboarding on vain ensimmäisen käytön näkymä. Aiemmin se vaadittiin
+      // jokaiselta yritystilikirjalta, jolta puuttui yritysdokumentti, jolloin
+      // sivupalkista lisätty yritys ei näkynyt missään eikä takaisin aiempaan
+      // tilikirjaan päässyt. Ks. lib/ledgerSelection.
+      const selection = resolveLedgerSelection(existingLedgers, getActiveLedgerId());
+      const currentLedgerId = selection.ledgerId;
+      if (selection.needsOnboarding || currentLedgerId === null) {
+        setNeedsOnboarding(true);
         setLoading(false);
         return;
       }
-      setHasCompany(true);
-      if (comp) setCompany(comp);
+      if (selection.ledgerChanged) setActiveLedgerId(currentLedgerId);
+      setActiveLedgerIdState(currentLedgerId);
+      setNeedsOnboarding(false);
+
+      // Siirtaa aiemmin paikallisesti tallennetun aineiston Firestoreen kertaalleen.
+      // Vasta tassa, jotta kohdetilikirja on varmasti olemassa.
+      if (uid) {
+        await migrateLegacyLocalData(uid, currentLedgerId);
+      }
+
+      const isPersonal = selection.isPersonal;
+
+      // Yritystiedot luetaan aina uudelleen; null tyhjentää edellisen
+      // tilikirjan tiedot, jottei esimerkiksi laskulle päädy väärä nimi.
+      setCompany(await getCompany());
 
       if (isPersonal) {
         if (uid) {
@@ -164,6 +164,26 @@ export function useStore() {
     if (!ledger.description) delete (ledger as Partial<Ledger>).description;
     await saveLedger(ledger);
     await seedLedgerAccounts(id, ledger.type);
+
+    // Yritystilikirjalle luodaan yritystiedot heti tilikirjan tiedoista, jotta
+    // nimi näkyy laskuilla ja asetuksissa ilman erillistä täyttövaihetta.
+    if (ledger.type === 'company') {
+      await saveCompanyToLedger(id, {
+        id: 'main',
+        name: ledger.name,
+        yTunnus: ledger.yTunnus ?? '',
+        address: ledger.address ?? '',
+        postalCode: '',
+        city: '',
+        vatRegistered: ledger.vatRegistered,
+        fiscalYearStart: '01-01',
+        fiscalYearEnd: '12-31',
+        accountantName: '',
+        accountantEmail: '',
+        accountantPhone: '',
+      });
+    }
+
     await changeActiveLedger(id);
     showToast('Tilikirja luotu', 'success');
   }, [changeActiveLedger, showToast]);
@@ -359,7 +379,7 @@ export function useStore() {
     company,
     cashEntries,
     loading,
-    hasCompany,
+    needsOnboarding,
     selectedAccountId,
     setSelectedAccountId,
     searchQuery,

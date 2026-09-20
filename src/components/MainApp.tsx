@@ -72,7 +72,7 @@ export function MainApp() {
     });
   }, [store.cashEntries]);
 
-  if (store.loading || store.hasCompany === null) {
+  if (store.loading || store.needsOnboarding === null) {
     return (
       <div className="app-shell w-full flex items-center justify-center bg-gray-50">
         <div className="flex flex-col items-center gap-3">
@@ -83,7 +83,7 @@ export function MainApp() {
     );
   }
 
-  if (!store.hasCompany) {
+  if (store.needsOnboarding) {
     return <Onboarding onComplete={store.loadData} />;
   }
 

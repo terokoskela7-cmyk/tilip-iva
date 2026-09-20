@@ -94,6 +94,11 @@ export async function saveCompany(company: Company): Promise<void> {
   await setDoc(ledgerDoc('company', 'main'), company);
 }
 
+/** Yritystiedot nimettyyn tilikirjaan, kun se ei ole viela aktiivinen. */
+export async function saveCompanyToLedger(ledgerId: string, company: Company): Promise<void> {
+  await setDoc(specificLedgerDoc(ledgerId, 'company', 'main'), company);
+}
+
 // === ACCOUNTS ===
 export async function getAllAccounts(): Promise<Account[]> {
   const snap = await getDocs(query(ledgerCol('accounts'), orderBy('number')));

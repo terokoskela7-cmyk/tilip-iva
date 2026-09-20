@@ -54,6 +54,7 @@ tietokannasta, eli se tuottaa käytännössä tyhjän varmuuskopion.
 | M9 Verolaskuri sekoittaa yhtiömuodot | ✅ Korjattu |
 | L3 Ei yhtään testiä | 🟡 Laskentalogiikka testattu (99 testiä), CI ajaa testit |
 | M12 Mobiilin yläpalkki peitti sisällön | ✅ Korjattu |
+| M13 Lisätty yritys ei näkynyt | ✅ Korjattu |
 | L1 Lockfile osoitti kolmannen osapuolen peiliin | ✅ Korjattu |
 | L2, L4–L9 | ⬜ Avoin |
 
@@ -337,6 +338,37 @@ ja se on merkitty näkymään arvioksi. `updateItem` ei enää mutatoi tila-olio
 Koko migraatio tehdään yhdessä `writeBatch`issä. Firestoren raja on 500 operaatiota; sitä isompi
 aineisto kaataa migraation kokonaan eikä mitään siirry.
 
+### M13. Sivupalkista lisätty yritys ei näkynyt — ✅ korjattu
+`src/hooks/useStore.ts`, `src/components/LedgerModal.tsx`
+
+Löydös tuli käyttäjältä: "olen lisännyt yrityksen niin sen nimi ei tule näkyville, As Oy tulee
+näkyviin".
+
+Syy: onboardingia vaadittiin jokaiselta **yritystyyppiseltä** tilikirjalta, jolta puuttui
+yritysdokumentti:
+
+```ts
+const companyRequired = !activeLedger || activeLedger.type === 'company';
+if (!comp && companyRequired) { setHasCompany(false); return; }
+```
+
+"Luo uusi tilikirja" ei luonut yritysdokumenttia, joten heti yrityksen lisäämisen jälkeen
+sovellus renderöi Onboarding-näkymän koko sovelluksen tilalle. Juuri luotu tilikirja ei näkynyt
+missään. Asunto-osakeyhtiö ei vaadi yritysdokumenttia, joten se näkyi normaalisti — täsmälleen
+se ero jonka käyttäjä havaitsi.
+
+Ansa oli pahempi kuin kertaluonteinen häiriö: Onboarding-näkymässä ei ole sivupalkkia, joten
+takaisin toimivaan tilikirjaan ei päässyt. Tilanne toistui jokaisella latauksella, koska
+aktiivinen tilikirja oli tallessa localStoragessa.
+
+Korjattu kolmella muutoksella:
+- Onboarding on vain ensimmäisen käytön näkymä, eli se näytetään kun tilikirjoja ei ole
+  yhtään. Valintalogiikka on eriytetty `lib/ledgerSelection.ts`:ään ja testattu.
+- Yritystilikirjalle luodaan yritystiedot heti tilikirjan omista tiedoista, joten nimi näkyy
+  laskuilla ja asetuksissa ilman erillistä täyttövaihetta.
+- Yritystiedot tyhjennetään tilikirjaa vaihdettaessa. Aiemmin `if (comp) setCompany(comp)` jätti
+  edellisen tilikirjan tiedot voimaan, jolloin laskulle saattoi päätyä väärän yrityksen nimi.
+
 ### M12. Mobiilin kiinteä yläpalkki peitti sisällön — ✅ korjattu
 `src/components/Sidebar.tsx`, `src/components/MainApp.tsx`
 
@@ -417,7 +449,7 @@ Merkittävimmät sovelluskoodissa:
 Lint ei ole osa CI:tä, joten nämä eivät estä julkaisua.
 
 ### L3. Ei yhtään testiä — 🟡 osittain korjattu
-Repossa ei ollut testejä eikä testiajuria. Nyt `npm test` ajaa 99 testiä
+Repossa ei ollut testejä eikä testiajuria. Nyt `npm test` ajaa 104 testiä
 (`tests/`, Noden oma test runner + esbuild, ei uusia riippuvuuksia): tilikausien muodostus,
 senttipohjainen saldolaskenta, tuloslaskelma/tase/ALV yhdelle tilikaudelle, tositteen
 validointi, juokseva numerointi, myyntilaskun kirjausketju, CSV-tuonti sekä YEL- ja
@@ -505,5 +537,5 @@ tuotantoympäristöjen erottamisen.
 
 10. ~~**L1** — lockfile viralliseen rekisteriin.~~ Vain `resolved`-osoitteet vaihdettiin,
     versiot säilyivät. `.npmrc` ja vahtitesti estävät toistumisen.
-11. **L3** — osittain tehty: `npm test` ajaa laskentalogiikan testit (99 kpl) ja CI ajaa ne
+11. **L3** — osittain tehty: `npm test` ajaa laskentalogiikan testit (104 kpl) ja CI ajaa ne
     ennen buildia. Jäljellä lint CI:hin ja testit myös komponenttitasolle.
